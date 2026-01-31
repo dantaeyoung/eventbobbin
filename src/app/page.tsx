@@ -4,6 +4,21 @@ import { Event, Source } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
 
+async function parseJsonSafe<T>(res: Response, fallback: T): Promise<T> {
+  try {
+    if (!res.ok) return fallback;
+    const text = await res.text();
+    if (!text || (!text.startsWith('{') && !text.startsWith('['))) {
+      console.error('API returned non-JSON:', text.slice(0, 100));
+      return fallback;
+    }
+    return JSON.parse(text);
+  } catch (error) {
+    console.error('Failed to parse JSON:', error);
+    return fallback;
+  }
+}
+
 async function getData() {
   const baseUrl = process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
 
@@ -16,8 +31,8 @@ async function getData() {
     fetch(`${baseUrl}/api/sources`, { cache: 'no-store' }),
   ]);
 
-  const events: Event[] = await eventsRes.json();
-  const sources: Source[] = await sourcesRes.json();
+  const events: Event[] = await parseJsonSafe(eventsRes, []);
+  const sources: Source[] = await parseJsonSafe(sourcesRes, []);
 
   return { events, sources };
 }
