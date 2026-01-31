@@ -1,8 +1,50 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Source } from '@/lib/types';
 import { format } from 'date-fns';
+
+const STORAGE_KEY = 'eventbobbin-scraping';
+const STALE_THRESHOLD_MS = 5 * 60 * 1000; // 5 minutes
+
+interface ScrapingState {
+  [sourceId: string]: number; // timestamp when scrape started
+}
+
+function loadScrapingState(): Set<string> {
+  if (typeof window === 'undefined') return new Set();
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (!stored) return new Set();
+    const state: ScrapingState = JSON.parse(stored);
+    const now = Date.now();
+    // Filter out stale entries (older than 5 minutes)
+    const active = Object.entries(state)
+      .filter(([, timestamp]) => now - timestamp < STALE_THRESHOLD_MS)
+      .map(([id]) => id);
+    return new Set(active);
+  } catch {
+    return new Set();
+  }
+}
+
+function saveScrapingState(scraping: Set<string>) {
+  if (typeof window === 'undefined') return;
+  // Preserve existing timestamps, only add new ones
+  let existing: ScrapingState = {};
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored) existing = JSON.parse(stored);
+  } catch {
+    // ignore
+  }
+  const state: ScrapingState = {};
+  const now = Date.now();
+  scraping.forEach((id) => {
+    state[id] = existing[id] || now;
+  });
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+}
 
 interface SourcesPageProps {
   initialSources: Source[];
@@ -14,6 +56,20 @@ export function SourcesPage({ initialSources }: SourcesPageProps) {
   const [url, setUrl] = useState('');
   const [adding, setAdding] = useState(false);
   const [scraping, setScraping] = useState<Set<string>>(new Set());
+  const [mounted, setMounted] = useState(false);
+
+  // Load scraping state from localStorage on mount
+  useEffect(() => {
+    setScraping(loadScrapingState());
+    setMounted(true);
+  }, []);
+
+  // Save scraping state to localStorage when it changes
+  useEffect(() => {
+    if (mounted) {
+      saveScrapingState(scraping);
+    }
+  }, [scraping, mounted]);
 
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
