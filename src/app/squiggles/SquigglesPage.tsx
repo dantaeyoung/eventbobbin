@@ -260,23 +260,44 @@ export function SquigglesPage({ initialSources }: SquigglesPageProps) {
                 <SquigglePreview position={{ x: 1, y: 1 }} />
               </div>
 
+              {/* Live preview on grid while dragging */}
+              {draggedTag && (
+                <div
+                  className="absolute -translate-x-1/2 -translate-y-1/2 pointer-events-none z-5 transition-all duration-75"
+                  style={{
+                    left: `${previewPosition.x * 100}%`,
+                    top: `${previewPosition.y * 100}%`,
+                  }}
+                >
+                  <SquigglePreview position={previewPosition} />
+                  <div className="text-[10px] text-gray-500 text-center mt-1">
+                    {(previewPosition.x * 100).toFixed(0)}% / {(previewPosition.y * 100).toFixed(0)}%
+                  </div>
+                </div>
+              )}
+
               {/* Assigned tags */}
               {assignedTags.map((tag) => {
                 const pos = settings[tag];
                 const colors = getTagColor(tag);
+                const isBeingDragged = draggedTag === tag;
                 return (
                   <div
                     key={tag}
                     draggable
                     onDragStart={() => handleTagDragStart(tag)}
-                    className="absolute -translate-x-1/2 -translate-y-1/2 cursor-grab active:cursor-grabbing z-10"
+                    className={`absolute -translate-x-1/2 -translate-y-1/2 cursor-grab active:cursor-grabbing z-10 transition-opacity ${isBeingDragged ? 'opacity-30' : ''}`}
                     style={{
                       left: `${pos.x * 100}%`,
                       top: `${pos.y * 100}%`,
                     }}
                   >
+                    {/* Squiggle preview behind the tag */}
+                    <div className="absolute -translate-x-1/2 -translate-y-1/2 left-1/2 top-1/2 -z-10">
+                      <SquigglePreview position={pos} />
+                    </div>
                     <span
-                      className="px-2 py-1 text-xs font-medium rounded-full shadow-md border-2 border-white"
+                      className="relative px-2 py-1 text-xs font-medium rounded-full shadow-md border-2 border-white"
                       style={{ backgroundColor: colors.bg, color: colors.text }}
                     >
                       {tag}
@@ -284,19 +305,6 @@ export function SquigglesPage({ initialSources }: SquigglesPageProps) {
                   </div>
                 );
               })}
-            </div>
-
-            {/* Live preview */}
-            <div className="mt-12 p-4 bg-white rounded-lg border border-gray-200">
-              <h3 className="text-sm font-medium text-gray-700 mb-3">Preview at cursor position:</h3>
-              <div className="flex items-center gap-4">
-                <SquigglePreview position={previewPosition} />
-                <div className="text-xs text-gray-500">
-                  Chaos: {(previewPosition.x * 100).toFixed(0)}%
-                  <br />
-                  Openness: {(previewPosition.y * 100).toFixed(0)}%
-                </div>
-              </div>
             </div>
           </div>
 
