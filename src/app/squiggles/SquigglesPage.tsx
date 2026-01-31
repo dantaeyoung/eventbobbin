@@ -91,7 +91,17 @@ function generatePreviewSquiggle(
 }
 
 function SquigglePreview({ position }: { position: TagSquigglePosition }) {
-  const path = generatePreviewSquiggle(120, 60, position);
+  const [path, setPath] = useState<string>('');
+
+  // Generate path on client only to avoid hydration mismatch
+  useEffect(() => {
+    setPath(generatePreviewSquiggle(120, 60, position));
+  }, [position.x, position.y]);
+
+  if (!path) {
+    return <div className="w-[120px] h-[60px]" />;
+  }
+
   return (
     <svg width={120} height={60} className="overflow-visible">
       <path
