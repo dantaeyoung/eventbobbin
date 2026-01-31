@@ -7,6 +7,51 @@ interface EventCardProps {
   onDelete?: (event: Event) => void;
 }
 
+function formatDateForGoogle(date: string): string {
+  // Convert to format: 20260201T190000
+  return date.replace(/[-:]/g, '').split('.')[0];
+}
+
+function generateGoogleCalendarUrl(event: Event): string {
+  const params = new URLSearchParams({
+    action: 'TEMPLATE',
+    text: event.title,
+    dates: `${formatDateForGoogle(event.startDate)}/${formatDateForGoogle(event.endDate || event.startDate)}`,
+  });
+  if (event.location) params.set('location', event.location);
+  if (event.description) params.set('details', event.description);
+  if (event.url) params.set('details', (event.description || '') + '\n\n' + event.url);
+  return `https://calendar.google.com/calendar/render?${params}`;
+}
+
+function generateIcsContent(event: Event): string {
+  const formatIcsDate = (date: string) => date.replace(/[-:]/g, '').split('.')[0];
+  const lines = [
+    'BEGIN:VCALENDAR',
+    'VERSION:2.0',
+    'BEGIN:VEVENT',
+    `DTSTART:${formatIcsDate(event.startDate)}`,
+    `DTEND:${formatIcsDate(event.endDate || event.startDate)}`,
+    `SUMMARY:${event.title}`,
+  ];
+  if (event.location) lines.push(`LOCATION:${event.location}`);
+  if (event.description) lines.push(`DESCRIPTION:${event.description.replace(/\n/g, '\\n')}`);
+  if (event.url) lines.push(`URL:${event.url}`);
+  lines.push('END:VEVENT', 'END:VCALENDAR');
+  return lines.join('\r\n');
+}
+
+function downloadIcs(event: Event) {
+  const content = generateIcsContent(event);
+  const blob = new Blob([content], { type: 'text/calendar;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `${event.title.replace(/[^a-z0-9]/gi, '-')}.ics`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 export function EventCard({ event, source, onDelete }: EventCardProps) {
   const startDate = new Date(event.startDate);
   const dateStr = format(startDate, 'EEE, MMM d');
@@ -16,19 +61,43 @@ export function EventCard({ event, source, onDelete }: EventCardProps) {
 
   return (
     <div className="group relative bg-white border border-gray-200 rounded-lg hover:border-gray-300 hover:shadow-sm transition-all overflow-hidden">
-      {onDelete && (
+      {/* Hover actions */}
+      <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+        <a
+          href={generateGoogleCalendarUrl(event)}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={(e) => e.stopPropagation()}
+          className="w-6 h-6 bg-blue-100 text-blue-600 rounded-full hover:bg-blue-200 text-xs flex items-center justify-center"
+          title="Add to Google Calendar"
+        >
+          G
+        </a>
         <button
           onClick={(e) => {
             e.preventDefault();
             e.stopPropagation();
-            onDelete(event);
+            downloadIcs(event);
           }}
-          className="absolute top-2 right-2 w-6 h-6 bg-red-100 text-red-600 rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-200 text-xs flex items-center justify-center z-10"
-          title="Remove event"
+          className="w-6 h-6 bg-gray-100 text-gray-600 rounded-full hover:bg-gray-200 text-xs flex items-center justify-center"
+          title="Download .ics file"
         >
-          ✕
+          📅
         </button>
-      )}
+        {onDelete && (
+          <button
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onDelete(event);
+            }}
+            className="w-6 h-6 bg-red-100 text-red-600 rounded-full hover:bg-red-200 text-xs flex items-center justify-center"
+            title="Remove event"
+          >
+            ✕
+          </button>
+        )}
+      </div>
       <a
         href={event.url || '#'}
         target="_blank"
