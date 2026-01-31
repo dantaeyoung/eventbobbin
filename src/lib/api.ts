@@ -65,6 +65,7 @@ export const api = {
     url: string;
     scrapeInstructions?: string | null;
     tags?: string | null;
+    city?: string | null;
   }) =>
     apiFetch<Source>('/api/sources', {
       method: 'POST',

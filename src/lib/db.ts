@@ -81,6 +81,13 @@ try {
   // Column already exists, ignore
 }
 
+// Migration: Add city column if it doesn't exist
+try {
+  db.exec(`ALTER TABLE sources ADD COLUMN city TEXT`);
+} catch {
+  // Column already exists, ignore
+}
+
 // Settings table for app-wide settings (like squiggle positions)
 db.exec(`
   CREATE TABLE IF NOT EXISTS settings (
@@ -134,8 +141,8 @@ export function getSourceById(id: string): Source | undefined {
 
 export function createSource(source: Omit<Source, 'createdAt'>): Source {
   const stmt = db.prepare(`
-    INSERT INTO sources (id, name, url, enabled, lastScrapedAt, lastContentHash, scrapeIntervalHours, scrapeInstructions, scrapingStartedAt, tags, logoUrl)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO sources (id, name, url, enabled, lastScrapedAt, lastContentHash, scrapeIntervalHours, scrapeInstructions, scrapingStartedAt, tags, logoUrl, city)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
   stmt.run(
     source.id,
@@ -148,7 +155,8 @@ export function createSource(source: Omit<Source, 'createdAt'>): Source {
     source.scrapeInstructions,
     source.scrapingStartedAt,
     source.tags,
-    source.logoUrl
+    source.logoUrl,
+    source.city
   );
   return getSourceById(source.id)!;
 }
@@ -199,6 +207,10 @@ export function updateSource(id: string, updates: Partial<Source>): Source | und
   if (updates.logoUrl !== undefined) {
     fields.push('logoUrl = ?');
     values.push(updates.logoUrl);
+  }
+  if (updates.city !== undefined) {
+    fields.push('city = ?');
+    values.push(updates.city);
   }
 
   if (fields.length === 0) return current;

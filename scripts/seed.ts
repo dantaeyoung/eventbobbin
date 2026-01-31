@@ -28,6 +28,7 @@ for (const source of initialSources) {
       scrapingStartedAt: null,
       tags: null,
       logoUrl: null,
+      city: null,
     });
     console.log(`Added: ${source.name}`);
     added++;

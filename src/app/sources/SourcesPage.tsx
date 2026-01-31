@@ -37,12 +37,13 @@ export function SourcesPage({ initialSources }: SourcesPageProps) {
   const [url, setUrl] = useState('');
   const [instructions, setInstructions] = useState('');
   const [tags, setTags] = useState('');
+  const [city, setCity] = useState('');
   const [adding, setAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editField, setEditField] = useState<'instructions' | 'tags' | 'name' | 'url' | 'full'>('instructions');
   const [editValue, setEditValue] = useState('');
-  const [editForm, setEditForm] = useState<{ name: string; url: string; tags: string; instructions: string }>({
-    name: '', url: '', tags: '', instructions: '',
+  const [editForm, setEditForm] = useState<{ name: string; url: string; tags: string; instructions: string; city: string }>({
+    name: '', url: '', tags: '', instructions: '', city: '',
   });
   const [, setTick] = useState(0); // Force re-render for timer
   const [sourceSort, setSourceSort] = useState<SourceSort>('alpha');
@@ -76,6 +77,15 @@ export function SourcesPage({ initialSources }: SourcesPageProps) {
     }
     return sorted;
   }, [sources, sourceSort]);
+
+  // Collect all unique cities
+  const allCities = useMemo(() => {
+    const citySet = new Set<string>();
+    sources.forEach((source) => {
+      if (source.city) citySet.add(source.city);
+    });
+    return Array.from(citySet).sort();
+  }, [sources]);
 
   // Collect all unique tags for autocomplete
   const allTags = useMemo(() => {
@@ -121,12 +131,14 @@ export function SourcesPage({ initialSources }: SourcesPageProps) {
         url,
         scrapeInstructions: instructions || null,
         tags: tags || null,
+        city: city || null,
       });
       setSources([...sources, source]);
       setName('');
       setUrl('');
       setInstructions('');
       setTags('');
+      setCity('');
     } catch (error) {
       console.error('Failed to add source:', error);
     } finally {
@@ -143,6 +155,7 @@ export function SourcesPage({ initialSources }: SourcesPageProps) {
         url: source.url,
         tags: source.tags || '',
         instructions: source.scrapeInstructions || '',
+        city: source.city || '',
       });
     } else {
       setEditValue(field === 'instructions' ? source.scrapeInstructions || '' : source.tags || '');
@@ -158,6 +171,7 @@ export function SourcesPage({ initialSources }: SourcesPageProps) {
           url: editForm.url,
           tags: editForm.tags || null,
           scrapeInstructions: editForm.instructions || null,
+          city: editForm.city || null,
         };
       } else if (editField === 'instructions') {
         body = { scrapeInstructions: editValue || null };
@@ -315,6 +329,18 @@ export function SourcesPage({ initialSources }: SourcesPageProps) {
                 onChange={(e) => setUrl(e.target.value)}
                 className="flex-[2] px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-900"
               />
+              <select
+                value={city}
+                onChange={(e) => setCity(e.target.value)}
+                className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white"
+              >
+                <option value="">City</option>
+                <option value="NYC">NYC</option>
+                <option value="LA">LA</option>
+                {allCities.filter(c => c !== 'NYC' && c !== 'LA').map((c) => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </select>
             </div>
             <div className="flex gap-3">
               <TagInput
@@ -406,6 +432,18 @@ export function SourcesPage({ initialSources }: SourcesPageProps) {
                           placeholder="https://example.com/events"
                           className="flex-[2] px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-900"
                         />
+                        <select
+                          value={editForm.city}
+                          onChange={(e) => setEditForm({ ...editForm, city: e.target.value })}
+                          className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white"
+                        >
+                          <option value="">City</option>
+                          <option value="NYC">NYC</option>
+                          <option value="LA">LA</option>
+                          {allCities.filter(c => c !== 'NYC' && c !== 'LA').map((c) => (
+                            <option key={c} value={c}>{c}</option>
+                          ))}
+                        </select>
                       </div>
                       <div className="flex gap-3">
                         <TagInput
@@ -452,6 +490,11 @@ export function SourcesPage({ initialSources }: SourcesPageProps) {
                           )}
                         </div>
                         <h3 className="font-semibold text-gray-900">{source.name}</h3>
+                        {source.city && (
+                          <span className="px-2 py-0.5 text-xs bg-blue-100 text-blue-700 rounded">
+                            {source.city}
+                          </span>
+                        )}
                         <button
                           onClick={() => handleEdit(source, 'full')}
                           className="text-xs text-gray-400 hover:text-gray-600"

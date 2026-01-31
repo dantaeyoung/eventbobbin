@@ -30,6 +30,7 @@ export async function POST(request: NextRequest) {
       scrapingStartedAt: null,
       tags: body.tags || null,
       logoUrl: null,
+      city: body.city || null,
     });
     return NextResponse.json(source, { status: 201 });
   } catch (error) {

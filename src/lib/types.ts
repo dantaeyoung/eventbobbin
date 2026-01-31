@@ -10,6 +10,7 @@ export interface Source {
   scrapingStartedAt: string | null; // null = not scraping, timestamp = in progress
   tags: string | null; // comma-separated, e.g., "museum,art,movement"
   logoUrl: string | null; // URL to the source's logo
+  city: string | null; // e.g., "NYC", "LA"
   createdAt: string;
 }
 
