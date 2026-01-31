@@ -1,9 +1,11 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Source } from '@/lib/types';
 import { format } from 'date-fns';
 import { ToastContainer, useToasts } from '@/components/Toast';
+import { TagInput } from '@/components/TagInput';
+import { getTagColor } from '@/lib/tagColors';
 
 function formatElapsed(startTime: string): string {
   const seconds = Math.floor((Date.now() - new Date(startTime).getTime()) / 1000);
@@ -28,6 +30,20 @@ export function SourcesPage({ initialSources }: SourcesPageProps) {
   const [editValue, setEditValue] = useState('');
   const [, setTick] = useState(0); // Force re-render for timer
   const { toasts, addToast, removeToast } = useToasts();
+
+  // Collect all unique tags for autocomplete
+  const allTags = useMemo(() => {
+    const tagSet = new Set<string>();
+    sources.forEach((source) => {
+      if (source.tags) {
+        source.tags.split(',').forEach((tag) => {
+          const trimmed = tag.trim().toLowerCase();
+          if (trimmed) tagSet.add(trimmed);
+        });
+      }
+    });
+    return Array.from(tagSet).sort();
+  }, [sources]);
 
   // Check for any sources currently scraping
   const hasScrapingSource = sources.some((s) => s.scrapingStartedAt);
@@ -150,9 +166,14 @@ export function SourcesPage({ initialSources }: SourcesPageProps) {
         <div className="max-w-3xl mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <h1 className="text-xl font-bold text-gray-900">Manage Sources</h1>
-            <a href="/" className="text-sm text-gray-600 hover:text-gray-900">
-              ← Back to Events
-            </a>
+            <div className="flex gap-4">
+              <a href="/" className="text-sm text-gray-600 hover:text-gray-900">
+                ← Back to Events
+              </a>
+              <a href="/squiggles" className="text-sm text-gray-600 hover:text-gray-900">
+                Manage Squiggles
+              </a>
+            </div>
           </div>
         </div>
       </header>
@@ -178,12 +199,12 @@ export function SourcesPage({ initialSources }: SourcesPageProps) {
               />
             </div>
             <div className="flex gap-3">
-              <input
-                type="text"
-                placeholder="Tags (optional) e.g., 'museum, movement, art'"
+              <TagInput
                 value={tags}
-                onChange={(e) => setTags(e.target.value)}
-                className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-900 text-sm"
+                onChange={setTags}
+                allTags={allTags}
+                placeholder="Tags (optional) e.g., 'museum, movement, art'"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-900 text-sm"
               />
               <input
                 type="text"
@@ -230,15 +251,19 @@ export function SourcesPage({ initialSources }: SourcesPageProps) {
                   {/* Tags display */}
                   {source.tags && editingId !== source.id && (
                     <div className="flex flex-wrap gap-1 mt-2">
-                      {source.tags.split(',').map((tag, i) => (
-                        <span
-                          key={i}
-                          onClick={() => handleEdit(source, 'tags')}
-                          className="px-2 py-0.5 text-xs bg-blue-100 text-blue-700 rounded-full cursor-pointer hover:bg-blue-200"
-                        >
-                          {tag.trim()}
-                        </span>
-                      ))}
+                      {source.tags.split(',').map((tag, i) => {
+                        const colors = getTagColor(tag.trim());
+                        return (
+                          <span
+                            key={i}
+                            onClick={() => handleEdit(source, 'tags')}
+                            className="px-2 py-0.5 text-xs rounded-full cursor-pointer hover:opacity-80"
+                            style={{ backgroundColor: colors.bg, color: colors.text }}
+                          >
+                            {tag.trim()}
+                          </span>
+                        );
+                      })}
                     </div>
                   )}
                   {!source.tags && editingId !== source.id && (
@@ -252,14 +277,25 @@ export function SourcesPage({ initialSources }: SourcesPageProps) {
                   {/* Edit form */}
                   {editingId === source.id ? (
                     <div className="flex gap-2 mt-2">
-                      <input
-                        type="text"
-                        value={editValue}
-                        onChange={(e) => setEditValue(e.target.value)}
-                        placeholder={editField === 'tags' ? "Tags (comma-separated)" : "AI scrape filter"}
-                        className="flex-1 px-2 py-1 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-900"
-                        autoFocus
-                      />
+                      {editField === 'tags' ? (
+                        <TagInput
+                          value={editValue}
+                          onChange={setEditValue}
+                          allTags={allTags}
+                          placeholder="Tags (comma-separated)"
+                          className="flex-1 px-2 py-1 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-900"
+                          autoFocus
+                        />
+                      ) : (
+                        <input
+                          type="text"
+                          value={editValue}
+                          onChange={(e) => setEditValue(e.target.value)}
+                          placeholder="AI scrape filter"
+                          className="flex-1 px-2 py-1 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-900"
+                          autoFocus
+                        />
+                      )}
                       <button
                         onClick={() => handleSaveEdit(source.id)}
                         className="px-2 py-1 text-sm bg-gray-900 text-white rounded-md hover:bg-gray-800"

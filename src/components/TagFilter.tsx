@@ -1,6 +1,7 @@
 'use client';
 
 import { Source } from '@/lib/types';
+import { getTagColor, getTagColorSelected } from '@/lib/tagColors';
 
 interface TagFilterProps {
   sources: Source[];
@@ -33,24 +34,30 @@ export function TagFilter({ sources, selected, onChange }: TagFilterProps) {
   };
 
   return (
-    <div className="flex flex-wrap gap-1">
-      {sortedTags.map((tag) => (
-        <button
-          key={tag}
-          onClick={() => toggleTag(tag)}
-          className={`px-2 py-0.5 text-xs rounded-full transition-colors ${
-            selected.includes(tag)
-              ? 'bg-blue-500 text-white'
-              : 'bg-blue-100 text-blue-700 hover:bg-blue-200'
-          }`}
-        >
-          {tag}
-        </button>
-      ))}
+    <div className="flex flex-wrap gap-1.5">
+      {sortedTags.map((tag) => {
+        const isSelected = selected.includes(tag);
+        const colors = isSelected ? getTagColorSelected(tag) : getTagColor(tag);
+        return (
+          <button
+            key={tag}
+            onClick={() => toggleTag(tag)}
+            style={{
+              backgroundColor: colors.bg,
+              color: colors.text,
+            }}
+            className={`px-2.5 py-1 text-xs rounded-full transition-all font-medium ${
+              isSelected ? 'shadow-sm ring-2 ring-offset-1 ring-gray-400' : 'hover:opacity-80'
+            }`}
+          >
+            {tag}
+          </button>
+        );
+      })}
       {selected.length > 0 && (
         <button
           onClick={() => onChange([])}
-          className="px-2 py-0.5 text-xs text-gray-500 hover:text-gray-700"
+          className="px-2 py-1 text-xs text-gray-500 hover:text-gray-700"
         >
           Clear
         </button>

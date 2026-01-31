@@ -44,6 +44,8 @@ next-env.d.ts
 # Database
 data/*.db
 data/*.db-journal
+data/*.db-shm
+data/*.db-wal
 
 # Environment
 .env

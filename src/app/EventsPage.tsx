@@ -207,6 +207,12 @@ export function EventsPage({ initialEvents, initialSources }: EventsPageProps) {
                 📅 Subscribe
               </a>
               <a
+                href="/squiggles"
+                className="text-sm text-gray-600 hover:text-gray-900"
+              >
+                Manage Squiggles
+              </a>
+              <a
                 href="/sources"
                 className="text-sm text-gray-600 hover:text-gray-900"
               >
