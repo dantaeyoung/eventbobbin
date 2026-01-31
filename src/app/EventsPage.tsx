@@ -66,14 +66,17 @@ export function EventsPage({ initialEvents, initialSources }: EventsPageProps) {
   const [loading, setLoading] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
 
-  // Compute event dates for calendar dots
+  // Compute event dates for calendar dots (filtered by selected sources)
   const eventDates = useMemo(() => {
     const dates = new Set<string>();
-    allEvents.forEach((e) => {
+    const filtered = selectedSources.length > 0
+      ? allEvents.filter((e) => selectedSources.includes(e.sourceId))
+      : allEvents;
+    filtered.forEach((e) => {
       dates.add(e.startDate.split('T')[0]);
     });
     return dates;
-  }, [allEvents]);
+  }, [allEvents, selectedSources]);
 
   // Load date range from localStorage on mount
   useEffect(() => {
