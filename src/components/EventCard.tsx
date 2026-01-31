@@ -230,24 +230,38 @@ export function EventCard({ event, source, onDelete, squiggleSettings = {} }: Ev
               </div>
             )}
 
-            <div className="relative p-5">
-              {/* Event title */}
-              <h3 className="font-bold text-black text-[14px] mb-2 pr-12">
-                {event.title}
-              </h3>
+            <div className="relative p-5 flex gap-3">
+              <div className="flex-1 min-w-0">
+                {/* Event title */}
+                <h3 className="font-bold text-black text-[14px] mb-2 pr-12">
+                  {event.title}
+                </h3>
 
-              {/* Description */}
-              {event.description && (
-                <p className="text-[12px] text-black font-normal mb-1 line-clamp-2">
-                  {event.description}
-                </p>
-              )}
+                {/* Description */}
+                {event.description && (
+                  <p className="text-[12px] text-black font-normal mb-1 line-clamp-2">
+                    {event.description}
+                  </p>
+                )}
 
-              {/* Location */}
-              {event.location && (
-                <p className="text-[12px] text-black font-normal">
-                  {event.location}
-                </p>
+                {/* Location */}
+                {event.location && (
+                  <p className="text-[12px] text-black font-normal">
+                    {event.location}
+                  </p>
+                )}
+              </div>
+
+              {/* Event image thumbnail */}
+              {event.imageUrl && (
+                <div className="flex-shrink-0 w-20 h-20 rounded overflow-hidden">
+                  <img
+                    src={event.imageUrl}
+                    alt=""
+                    className="w-full h-full object-cover"
+                    onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                  />
+                </div>
               )}
             </div>
 

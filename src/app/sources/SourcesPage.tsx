@@ -1,6 +1,18 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
+
+const SOURCE_SORT_KEY = 'eventbobbin-source-sort';
+type SourceSort = 'alpha' | 'lastScraped';
+
+function loadSourceSort(): SourceSort {
+  if (typeof window === 'undefined') return 'alpha';
+  const stored = localStorage.getItem(SOURCE_SORT_KEY);
+  if (stored && ['alpha', 'lastScraped'].includes(stored)) {
+    return stored as SourceSort;
+  }
+  return 'alpha';
+}
 import { Source } from '@/lib/types';
 import { format } from 'date-fns';
 import { ToastContainer, useToasts } from '@/components/Toast';
@@ -33,7 +45,36 @@ export function SourcesPage({ initialSources }: SourcesPageProps) {
     name: '', url: '', tags: '', instructions: '',
   });
   const [, setTick] = useState(0); // Force re-render for timer
+  const [sourceSort, setSourceSort] = useState<SourceSort>('alpha');
   const { toasts, addToast, removeToast } = useToasts();
+
+  // Load sort preference on mount
+  useEffect(() => {
+    setSourceSort(loadSourceSort());
+  }, []);
+
+  // Save sort preference when it changes
+  useEffect(() => {
+    localStorage.setItem(SOURCE_SORT_KEY, sourceSort);
+  }, [sourceSort]);
+
+  // Sorted sources
+  const sortedSources = useMemo(() => {
+    const sorted = [...sources];
+    if (sourceSort === 'alpha') {
+      sorted.sort((a, b) => a.name.localeCompare(b.name));
+    } else if (sourceSort === 'lastScraped') {
+      sorted.sort((a, b) => {
+        // Never scraped first
+        if (!a.lastScrapedAt && !b.lastScrapedAt) return a.name.localeCompare(b.name);
+        if (!a.lastScrapedAt) return -1;
+        if (!b.lastScrapedAt) return 1;
+        // Oldest scraped first
+        return new Date(a.lastScrapedAt).getTime() - new Date(b.lastScrapedAt).getTime();
+      });
+    }
+    return sorted;
+  }, [sources, sourceSort]);
 
   // Collect all unique tags for autocomplete
   const allTags = useMemo(() => {
@@ -254,8 +295,33 @@ export function SourcesPage({ initialSources }: SourcesPageProps) {
           </div>
         </form>
 
+        {/* Sort options */}
+        <div className="flex items-center gap-2 mb-4">
+          <span className="text-sm text-gray-600">Sort:</span>
+          <button
+            onClick={() => setSourceSort('alpha')}
+            className={`px-3 py-1 text-sm rounded-md ${
+              sourceSort === 'alpha'
+                ? 'bg-gray-900 text-white'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+          >
+            A-Z
+          </button>
+          <button
+            onClick={() => setSourceSort('lastScraped')}
+            className={`px-3 py-1 text-sm rounded-md ${
+              sourceSort === 'lastScraped'
+                ? 'bg-gray-900 text-white'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+          >
+            Stale
+          </button>
+        </div>
+
         <div className="space-y-3">
-          {sources.map((source) => (
+          {sortedSources.map((source) => (
             <div
               key={source.id}
               className={`p-4 bg-white rounded-lg border border-gray-200 ${
@@ -318,14 +384,16 @@ export function SourcesPage({ initialSources }: SourcesPageProps) {
                   ) : (
                     <>
                       <div className="flex items-center gap-2">
-                        {source.logoUrl && (
-                          <img
-                            src={source.logoUrl}
-                            alt={`${source.name} logo`}
-                            className="w-6 h-6 object-contain rounded"
-                            onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-                          />
-                        )}
+                        <div className="w-6 h-6 flex-shrink-0 bg-gray-100 rounded overflow-hidden">
+                          {source.logoUrl && (
+                            <img
+                              src={source.logoUrl}
+                              alt=""
+                              className="w-full h-full object-contain"
+                              onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                            />
+                          )}
+                        </div>
                         <h3 className="font-semibold text-gray-900">{source.name}</h3>
                         <button
                           onClick={() => handleEdit(source, 'full')}

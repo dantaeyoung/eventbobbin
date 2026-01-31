@@ -11,9 +11,6 @@ import { api } from '@/lib/api';
 import { fetchSquiggleSettings, setSquiggleSettingsCache, SquiggleSettings } from '@/lib/squiggleSettings';
 
 const DATE_RANGE_KEY = 'eventbobbin-daterange';
-const SOURCE_SORT_KEY = 'eventbobbin-source-sort';
-
-type SourceSort = 'alpha' | 'lastScraped';
 
 interface EventsPageProps {
   initialEvents: Event[];
@@ -63,21 +60,12 @@ function loadDateRange(): DateRange {
   return 'week';
 }
 
-function loadSourceSort(): SourceSort {
-  if (typeof window === 'undefined') return 'alpha';
-  const stored = localStorage.getItem(SOURCE_SORT_KEY);
-  if (stored && ['alpha', 'lastScraped'].includes(stored)) {
-    return stored as SourceSort;
-  }
-  return 'alpha';
-}
 
 export function EventsPage({ initialEvents, initialSources }: EventsPageProps) {
   const [events, setEvents] = useState<Event[]>(initialEvents);
   const [allEvents, setAllEvents] = useState<Event[]>(initialEvents);
   const [sources] = useState<Source[]>(initialSources);
   const [squiggleSettings, setSquiggleSettings] = useState<SquiggleSettings>({});
-  const [sourceSort, setSourceSort] = useState<SourceSort>('alpha');
   const [selectedSources, setSelectedSources] = useState<string[]>([]);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [dateRange, setDateRange] = useState<DateRange | null>('week');
@@ -122,28 +110,9 @@ export function EventsPage({ initialEvents, initialSources }: EventsPageProps) {
     return dates;
   }, [allEvents, effectiveSourceIds]);
 
-  // Sorted sources based on sort preference
-  const sortedSources = useMemo(() => {
-    const sorted = [...sources];
-    if (sourceSort === 'alpha') {
-      sorted.sort((a, b) => a.name.localeCompare(b.name));
-    } else if (sourceSort === 'lastScraped') {
-      sorted.sort((a, b) => {
-        // Never scraped first
-        if (!a.lastScrapedAt && !b.lastScrapedAt) return a.name.localeCompare(b.name);
-        if (!a.lastScrapedAt) return -1;
-        if (!b.lastScrapedAt) return 1;
-        // Oldest scraped first (longest time since scrape)
-        return new Date(a.lastScrapedAt).getTime() - new Date(b.lastScrapedAt).getTime();
-      });
-    }
-    return sorted;
-  }, [sources, sourceSort]);
-
-  // Load date range and source sort from localStorage on mount
+  // Load date range from localStorage on mount
   useEffect(() => {
     setDateRange(loadDateRange());
-    setSourceSort(loadSourceSort());
     setMounted(true);
     // Fetch all future events for calendar dots
     api.getEvents({ from: format(startOfDay(new Date()), "yyyy-MM-dd'T'HH:mm:ss") })
@@ -163,12 +132,6 @@ export function EventsPage({ initialEvents, initialSources }: EventsPageProps) {
     }
   }, [dateRange, mounted]);
 
-  // Save source sort to localStorage when it changes
-  useEffect(() => {
-    if (mounted) {
-      localStorage.setItem(SOURCE_SORT_KEY, sourceSort);
-    }
-  }, [sourceSort, mounted]);
 
   const handleDateRangeChange = (range: DateRange) => {
     setDateRange(range);
@@ -239,8 +202,8 @@ export function EventsPage({ initialEvents, initialSources }: EventsPageProps) {
   };
 
   return (
-    <div className="min-h-screen bg-[#FFF8F0]">
-      <header className="bg-white border-b border-gray-200">
+    <div className="h-screen flex flex-col bg-[#FFF8F0] overflow-hidden">
+      <header className="bg-white border-b border-gray-200 flex-shrink-0">
         <div className="max-w-3xl mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <h1 className="text-xl font-bold text-gray-900">EventBobbin</h1>
@@ -282,10 +245,10 @@ export function EventsPage({ initialEvents, initialSources }: EventsPageProps) {
         </div>
       </header>
 
-      <main className="max-w-3xl mx-auto px-4 py-6">
-        <div className="flex gap-6">
+      <main className="flex-1 overflow-hidden max-w-3xl mx-auto px-4 py-6 w-full">
+        <div className="flex gap-6 h-full">
           {/* Left: Calendar and Sources */}
-          <div className="flex-shrink-0 w-[220px]">
+          <div className="flex-shrink-0 w-[220px] overflow-y-auto">
             <Calendar
               selectedDate={selectedDate}
               onSelectDate={handleCalendarSelect}
@@ -294,33 +257,7 @@ export function EventsPage({ initialEvents, initialSources }: EventsPageProps) {
 
             {/* Sources List */}
             <div className="mt-6">
-              <div className="flex items-center justify-between mb-2">
-                <h3 className="text-sm font-medium text-gray-700">Sources</h3>
-                <div className="flex gap-1">
-                  <button
-                    onClick={() => setSourceSort('alpha')}
-                    className={`px-1.5 py-0.5 text-[10px] rounded ${
-                      sourceSort === 'alpha'
-                        ? 'bg-gray-900 text-white'
-                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                    }`}
-                    title="Sort alphabetically"
-                  >
-                    A-Z
-                  </button>
-                  <button
-                    onClick={() => setSourceSort('lastScraped')}
-                    className={`px-1.5 py-0.5 text-[10px] rounded ${
-                      sourceSort === 'lastScraped'
-                        ? 'bg-gray-900 text-white'
-                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                    }`}
-                    title="Sort by last scraped (oldest first)"
-                  >
-                    Stale
-                  </button>
-                </div>
-              </div>
+              <h3 className="text-sm font-medium text-gray-700 mb-2">Sources</h3>
               <div className="space-y-1">
                 <button
                   onClick={() => setSelectedSources([])}
@@ -332,7 +269,7 @@ export function EventsPage({ initialEvents, initialSources }: EventsPageProps) {
                 >
                   All Sources
                 </button>
-                {sortedSources.map((source) => (
+                {sources.map((source) => (
                   <button
                     key={source.id}
                     onClick={() => {
@@ -348,14 +285,16 @@ export function EventsPage({ initialEvents, initialSources }: EventsPageProps) {
                         : 'hover:bg-gray-100 text-gray-700'
                     }`}
                   >
-                    {source.logoUrl && (
-                      <img
-                        src={source.logoUrl}
-                        alt=""
-                        className="w-4 h-4 object-contain rounded flex-shrink-0"
-                        onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-                      />
-                    )}
+                    <div className="w-4 h-4 flex-shrink-0 bg-gray-200 rounded overflow-hidden">
+                      {source.logoUrl && (
+                        <img
+                          src={source.logoUrl}
+                          alt=""
+                          className="w-full h-full object-contain"
+                          onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                        />
+                      )}
+                    </div>
                     <span className="truncate">{source.name}</span>
                   </button>
                 ))}
@@ -364,8 +303,8 @@ export function EventsPage({ initialEvents, initialSources }: EventsPageProps) {
           </div>
 
           {/* Right: Filters and Events */}
-          <div className="flex-1 min-w-0">
-            <div className="space-y-4 mb-6">
+          <div className="flex-1 min-w-0 flex flex-col h-full">
+            <div className="space-y-4 mb-6 flex-shrink-0">
               <div className="flex items-center justify-between">
                 <DateFilter
                   selected={dateRange}
@@ -387,7 +326,9 @@ export function EventsPage({ initialEvents, initialSources }: EventsPageProps) {
               />
             </div>
 
-            <EventList events={events} sources={sources} onDeleteEvent={setEventToDelete} squiggleSettings={squiggleSettings} />
+            <div className="flex-1 overflow-y-auto">
+              <EventList events={events} sources={sources} onDeleteEvent={setEventToDelete} squiggleSettings={squiggleSettings} />
+            </div>
           </div>
         </div>
       </main>

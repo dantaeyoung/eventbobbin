@@ -8,6 +8,7 @@ import { Source } from '../types';
 import { renderPage, closeBrowser } from './browser';
 import { extractEvents } from './extract';
 import { detectLogo } from './logo';
+import { fetchEventImage } from './eventImage';
 
 export async function scrapeSource(
   source: Source,
@@ -37,6 +38,21 @@ export async function scrapeSource(
     // Extract events via LLM
     const events = await extractEvents(text, links, source.scrapeInstructions, source.id);
     console.log(`  Extracted ${events.length} events`);
+
+    // Fetch og:image for events that have URLs but no images
+    let imagesFetched = 0;
+    for (const event of events) {
+      if (event.url && !event.imageUrl) {
+        const imageUrl = await fetchEventImage(event.url);
+        if (imageUrl) {
+          event.imageUrl = imageUrl;
+          imagesFetched++;
+        }
+      }
+    }
+    if (imagesFetched > 0) {
+      console.log(`  Fetched ${imagesFetched} event images from og:image`);
+    }
 
     // Upsert events
     const scrapedAt = new Date().toISOString();
