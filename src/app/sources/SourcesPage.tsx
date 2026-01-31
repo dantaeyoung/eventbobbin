@@ -318,6 +318,14 @@ export function SourcesPage({ initialSources }: SourcesPageProps) {
                   ) : (
                     <>
                       <div className="flex items-center gap-2">
+                        {source.logoUrl && (
+                          <img
+                            src={source.logoUrl}
+                            alt={`${source.name} logo`}
+                            className="w-6 h-6 object-contain rounded"
+                            onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                          />
+                        )}
                         <h3 className="font-semibold text-gray-900">{source.name}</h3>
                         <button
                           onClick={() => handleEdit(source, 'full')}

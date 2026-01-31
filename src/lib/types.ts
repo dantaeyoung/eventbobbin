@@ -9,6 +9,7 @@ export interface Source {
   scrapeInstructions: string | null; // e.g., "Only extract NYC events"
   scrapingStartedAt: string | null; // null = not scraping, timestamp = in progress
   tags: string | null; // comma-separated, e.g., "museum,art,movement"
+  logoUrl: string | null; // URL to the source's logo
   createdAt: string;
 }
 

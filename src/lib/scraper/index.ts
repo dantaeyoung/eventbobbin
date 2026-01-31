@@ -7,6 +7,7 @@ import {
 import { Source } from '../types';
 import { renderPage, closeBrowser } from './browser';
 import { extractEvents } from './extract';
+import { detectLogo } from './logo';
 
 export async function scrapeSource(
   source: Source,
@@ -60,6 +61,20 @@ export async function scrapeSource(
       lastScrapedAt: scrapedAt,
       lastContentHash: hash,
     });
+
+    // Detect logo if not already set
+    if (!source.logoUrl) {
+      try {
+        const logoUrl = await detectLogo(source.url, source.id);
+        if (logoUrl) {
+          await updateSource(source.id, { logoUrl });
+          console.log(`  Set logo: ${logoUrl}`);
+        }
+      } catch (error) {
+        console.error(`  Logo detection failed:`, error);
+        // Don't fail the scrape if logo detection fails
+      }
+    }
 
     return { success: true, eventsFound: events.length, skipped: false };
   } catch (error) {

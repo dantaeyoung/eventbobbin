@@ -29,6 +29,7 @@ export async function POST(request: NextRequest) {
       scrapeInstructions: body.scrapeInstructions || null,
       scrapingStartedAt: null,
       tags: body.tags || null,
+      logoUrl: null,
     });
     return NextResponse.json(source, { status: 201 });
   } catch (error) {

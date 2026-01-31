@@ -27,6 +27,7 @@ for (const source of initialSources) {
       scrapeInstructions: null,
       scrapingStartedAt: null,
       tags: null,
+      logoUrl: null,
     });
     console.log(`Added: ${source.name}`);
     added++;
