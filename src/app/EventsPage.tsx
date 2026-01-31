@@ -170,6 +170,13 @@ export function EventsPage({ initialEvents, initialSources }: EventsPageProps) {
                 ?
               </button>
               <a
+                href="/api/calendar.ics"
+                className="text-sm text-gray-600 hover:text-gray-900"
+                title="Subscribe to calendar feed"
+              >
+                📅 Subscribe
+              </a>
+              <a
                 href="/sources"
                 className="text-sm text-gray-600 hover:text-gray-900"
               >
@@ -280,6 +287,15 @@ export function EventsPage({ initialEvents, initialSources }: EventsPageProps) {
                 <li>Hold Shift + click "Scrape Now" to force re-scrape</li>
                 <li>Scraping auto-skips if page hasn't changed</li>
               </ul>
+              <p>
+                <strong>Calendar Subscription:</strong>
+              </p>
+              <p className="ml-2">
+                Click "📅 Subscribe" to get a calendar feed URL. Add it to Google Calendar or Apple Calendar and events will sync automatically.
+              </p>
+              <div className="mt-2 p-2 bg-gray-100 rounded text-xs font-mono break-all">
+                {typeof window !== 'undefined' ? `${window.location.origin}/api/calendar.ics` : '/api/calendar.ics'}
+              </div>
             </div>
             <button
               onClick={() => setShowHelp(false)}
