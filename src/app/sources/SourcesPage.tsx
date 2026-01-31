@@ -4,31 +4,8 @@ import { useState, useEffect, useCallback } from 'react';
 import { Source } from '@/lib/types';
 import { format } from 'date-fns';
 
-const STORAGE_KEY = 'eventbobbin-scraping';
-const STALE_THRESHOLD_MS = 10 * 60 * 1000; // 10 minutes
-
 interface ScrapingState {
   [sourceId: string]: number; // timestamp when scrape started
-}
-
-function loadScrapingState(): ScrapingState {
-  if (typeof window === 'undefined') return {};
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (!stored) return {};
-    const state: ScrapingState = JSON.parse(stored);
-    const now = Date.now();
-    // Filter out stale entries
-    const active: ScrapingState = {};
-    Object.entries(state).forEach(([id, timestamp]) => {
-      if (now - timestamp < STALE_THRESHOLD_MS) {
-        active[id] = timestamp;
-      }
-    });
-    return active;
-  } catch {
-    return {};
-  }
 }
 
 function formatElapsed(startTime: number): string {
@@ -36,11 +13,6 @@ function formatElapsed(startTime: number): string {
   const mins = Math.floor(seconds / 60);
   const secs = seconds % 60;
   return `${mins}:${secs.toString().padStart(2, '0')}`;
-}
-
-function saveScrapingState(scraping: ScrapingState) {
-  if (typeof window === 'undefined') return;
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(scraping));
 }
 
 interface SourcesPageProps {
@@ -54,23 +26,9 @@ export function SourcesPage({ initialSources }: SourcesPageProps) {
   const [instructions, setInstructions] = useState('');
   const [adding, setAdding] = useState(false);
   const [scraping, setScraping] = useState<ScrapingState>({});
-  const [mounted, setMounted] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editInstructions, setEditInstructions] = useState('');
   const [, setTick] = useState(0); // Force re-render for timer
-
-  // Load scraping state from localStorage on mount
-  useEffect(() => {
-    setScraping(loadScrapingState());
-    setMounted(true);
-  }, []);
-
-  // Save scraping state to localStorage when it changes
-  useEffect(() => {
-    if (mounted) {
-      saveScrapingState(scraping);
-    }
-  }, [scraping, mounted]);
 
   // Timer tick for elapsed time display
   useEffect(() => {
