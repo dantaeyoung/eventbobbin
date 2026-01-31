@@ -1,0 +1,186 @@
+import Database from 'better-sqlite3';
+import path from 'path';
+import { Source, Event } from './types';
+
+const dbPath = path.join(process.cwd(), 'data', 'events.db');
+const db = new Database(dbPath);
+
+// Enable WAL mode for better concurrent access
+db.pragma('journal_mode = WAL');
+
+// Initialize schema
+db.exec(`
+  CREATE TABLE IF NOT EXISTS sources (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    url TEXT NOT NULL UNIQUE,
+    enabled INTEGER NOT NULL DEFAULT 1,
+    lastScrapedAt TEXT,
+    lastContentHash TEXT,
+    scrapeIntervalHours INTEGER NOT NULL DEFAULT 24,
+    createdAt TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+
+  CREATE TABLE IF NOT EXISTS events (
+    id TEXT PRIMARY KEY,
+    sourceId TEXT NOT NULL,
+    title TEXT NOT NULL,
+    startDate TEXT NOT NULL,
+    endDate TEXT,
+    location TEXT,
+    description TEXT,
+    url TEXT,
+    rawData TEXT NOT NULL,
+    createdAt TEXT NOT NULL DEFAULT (datetime('now')),
+    updatedAt TEXT NOT NULL DEFAULT (datetime('now')),
+    scrapedAt TEXT NOT NULL,
+    FOREIGN KEY (sourceId) REFERENCES sources(id) ON DELETE CASCADE,
+    UNIQUE(sourceId, title, startDate)
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_events_startDate ON events(startDate);
+  CREATE INDEX IF NOT EXISTS idx_events_sourceId ON events(sourceId);
+`);
+
+// Source queries
+export function getAllSources(): Source[] {
+  return db.prepare('SELECT * FROM sources ORDER BY name').all() as Source[];
+}
+
+export function getEnabledSources(): Source[] {
+  return db.prepare('SELECT * FROM sources WHERE enabled = 1 ORDER BY name').all() as Source[];
+}
+
+export function getSourceById(id: string): Source | undefined {
+  return db.prepare('SELECT * FROM sources WHERE id = ?').get(id) as Source | undefined;
+}
+
+export function createSource(source: Omit<Source, 'createdAt'>): Source {
+  const stmt = db.prepare(`
+    INSERT INTO sources (id, name, url, enabled, lastScrapedAt, lastContentHash, scrapeIntervalHours)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+  `);
+  stmt.run(
+    source.id,
+    source.name,
+    source.url,
+    source.enabled ? 1 : 0,
+    source.lastScrapedAt,
+    source.lastContentHash,
+    source.scrapeIntervalHours
+  );
+  return getSourceById(source.id)!;
+}
+
+export function updateSource(id: string, updates: Partial<Source>): Source | undefined {
+  const current = getSourceById(id);
+  if (!current) return undefined;
+
+  const fields: string[] = [];
+  const values: unknown[] = [];
+
+  if (updates.name !== undefined) {
+    fields.push('name = ?');
+    values.push(updates.name);
+  }
+  if (updates.url !== undefined) {
+    fields.push('url = ?');
+    values.push(updates.url);
+  }
+  if (updates.enabled !== undefined) {
+    fields.push('enabled = ?');
+    values.push(updates.enabled ? 1 : 0);
+  }
+  if (updates.lastScrapedAt !== undefined) {
+    fields.push('lastScrapedAt = ?');
+    values.push(updates.lastScrapedAt);
+  }
+  if (updates.lastContentHash !== undefined) {
+    fields.push('lastContentHash = ?');
+    values.push(updates.lastContentHash);
+  }
+  if (updates.scrapeIntervalHours !== undefined) {
+    fields.push('scrapeIntervalHours = ?');
+    values.push(updates.scrapeIntervalHours);
+  }
+
+  if (fields.length === 0) return current;
+
+  values.push(id);
+  db.prepare(`UPDATE sources SET ${fields.join(', ')} WHERE id = ?`).run(...values);
+  return getSourceById(id);
+}
+
+export function deleteSource(id: string): boolean {
+  const result = db.prepare('DELETE FROM sources WHERE id = ?').run(id);
+  return result.changes > 0;
+}
+
+// Event queries
+export function getEvents(options: {
+  sourceIds?: string[];
+  from?: string;
+  to?: string;
+  limit?: number;
+}): Event[] {
+  let query = 'SELECT * FROM events WHERE 1=1';
+  const params: unknown[] = [];
+
+  if (options.sourceIds && options.sourceIds.length > 0) {
+    query += ` AND sourceId IN (${options.sourceIds.map(() => '?').join(',')})`;
+    params.push(...options.sourceIds);
+  }
+
+  if (options.from) {
+    query += ' AND startDate >= ?';
+    params.push(options.from);
+  }
+
+  if (options.to) {
+    query += ' AND startDate <= ?';
+    params.push(options.to);
+  }
+
+  query += ' ORDER BY startDate ASC';
+
+  if (options.limit) {
+    query += ' LIMIT ?';
+    params.push(options.limit);
+  }
+
+  return db.prepare(query).all(...params) as Event[];
+}
+
+export function upsertEvent(event: Omit<Event, 'createdAt' | 'updatedAt'>): void {
+  const stmt = db.prepare(`
+    INSERT INTO events (id, sourceId, title, startDate, endDate, location, description, url, rawData, scrapedAt)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ON CONFLICT(sourceId, title, startDate) DO UPDATE SET
+      endDate = excluded.endDate,
+      location = excluded.location,
+      description = excluded.description,
+      url = excluded.url,
+      rawData = excluded.rawData,
+      updatedAt = datetime('now'),
+      scrapedAt = excluded.scrapedAt
+  `);
+  stmt.run(
+    event.id,
+    event.sourceId,
+    event.title,
+    event.startDate,
+    event.endDate,
+    event.location,
+    event.description,
+    event.url,
+    event.rawData,
+    event.scrapedAt
+  );
+}
+
+export function deleteEventsBySource(sourceId: string): number {
+  const result = db.prepare('DELETE FROM events WHERE sourceId = ?').run(sourceId);
+  return result.changes;
+}
+
+export { db };
