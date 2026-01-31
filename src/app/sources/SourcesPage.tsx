@@ -13,7 +13,7 @@ export function SourcesPage({ initialSources }: SourcesPageProps) {
   const [name, setName] = useState('');
   const [url, setUrl] = useState('');
   const [adding, setAdding] = useState(false);
-  const [scraping, setScraping] = useState<string | null>(null);
+  const [scraping, setScraping] = useState<Set<string>>(new Set());
 
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -59,7 +59,7 @@ export function SourcesPage({ initialSources }: SourcesPageProps) {
   };
 
   const handleScrape = async (id: string) => {
-    setScraping(id);
+    setScraping((prev) => new Set(prev).add(id));
     try {
       const res = await fetch(`/api/sources/${id}/scrape`, { method: 'POST' });
       const result = await res.json();
@@ -72,7 +72,11 @@ export function SourcesPage({ initialSources }: SourcesPageProps) {
       const sourcesRes = await fetch('/api/sources');
       setSources(await sourcesRes.json());
     } finally {
-      setScraping(null);
+      setScraping((prev) => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
     }
   };
 
@@ -145,10 +149,10 @@ export function SourcesPage({ initialSources }: SourcesPageProps) {
                 <div className="flex items-center gap-2 ml-4">
                   <button
                     onClick={() => handleScrape(source.id)}
-                    disabled={scraping === source.id}
+                    disabled={scraping.has(source.id)}
                     className="px-3 py-1.5 text-sm bg-gray-100 rounded-md hover:bg-gray-200 disabled:opacity-50"
                   >
-                    {scraping === source.id ? 'Scraping...' : 'Scrape Now'}
+                    {scraping.has(source.id) ? 'Scraping...' : 'Scrape Now'}
                   </button>
                   <button
                     onClick={() => handleToggle(source)}
