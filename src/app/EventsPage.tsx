@@ -81,6 +81,7 @@ export function EventsPage({ initialEvents, initialSources }: EventsPageProps) {
   const [showHelp, setShowHelp] = useState(false);
   const [eventToDelete, setEventToDelete] = useState<Event | null>(null);
   const [selectedCity, setSelectedCity] = useState<string | null>(null);
+  const [showMobileFilters, setShowMobileFilters] = useState(false);
 
   // Get unique cities from sources
   const cities = useMemo(() => {
@@ -258,7 +259,7 @@ export function EventsPage({ initialEvents, initialSources }: EventsPageProps) {
         <div className="max-w-6xl mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <h1 className="text-xl font-bold text-gray-900">EventBobbin</h1>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 md:gap-3">
               <button
                 onClick={() => setShowHelp(true)}
                 className="w-6 h-6 rounded-full bg-gray-100 text-gray-600 hover:bg-gray-200 text-sm font-medium"
@@ -268,14 +269,14 @@ export function EventsPage({ initialEvents, initialSources }: EventsPageProps) {
               </button>
               <a
                 href="/api/calendar.ics"
-                className="text-sm text-gray-600 hover:text-gray-900"
+                className="text-sm text-gray-600 hover:text-gray-900 hidden md:inline"
                 title="Subscribe to calendar feed"
               >
                 📅 Subscribe
               </a>
               <a
                 href="/squiggles"
-                className="text-sm text-gray-600 hover:text-gray-900"
+                className="text-sm text-gray-600 hover:text-gray-900 hidden md:inline"
               >
                 Squiggles
               </a>
@@ -287,7 +288,7 @@ export function EventsPage({ initialEvents, initialSources }: EventsPageProps) {
               </a>
               <a
                 href="/stats"
-                className="text-sm text-gray-600 hover:text-gray-900"
+                className="text-sm text-gray-600 hover:text-gray-900 hidden md:inline"
               >
                 Stats
               </a>
@@ -296,10 +297,32 @@ export function EventsPage({ initialEvents, initialSources }: EventsPageProps) {
         </div>
       </header>
 
-      <main className="flex-1 overflow-hidden max-w-6xl mx-auto px-4 py-6 w-full">
+      <main className="flex-1 overflow-hidden max-w-6xl mx-auto px-4 py-4 md:py-6 w-full">
+        {/* Mobile filter button */}
+        <div className="md:hidden mb-4 flex items-center justify-between">
+          <button
+            onClick={() => setShowMobileFilters(true)}
+            className="px-4 py-2 bg-gray-100 text-gray-700 rounded-md text-sm flex items-center gap-2"
+          >
+            <span>Filters</span>
+            {(selectedCity || selectedSources.length > 0 || selectedTags.length > 0) && (
+              <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
+            )}
+          </button>
+          <div className="flex items-center gap-2">
+            {loading && (
+              <span className="text-sm text-gray-500">Loading...</span>
+            )}
+            <DateFilter
+              selected={dateRange}
+              onChange={handleDateRangeChange}
+            />
+          </div>
+        </div>
+
         <div className="flex gap-6 h-full">
-          {/* Left: Calendar and Sources */}
-          <div className="flex-shrink-0 w-[220px] overflow-y-auto">
+          {/* Left: Calendar and Sources - hidden on mobile */}
+          <div className="hidden md:block flex-shrink-0 w-[220px] overflow-y-auto">
             {/* City Filter */}
             {cities.length > 0 && (
               <div className="mb-4">
@@ -388,7 +411,7 @@ export function EventsPage({ initialEvents, initialSources }: EventsPageProps) {
           {/* Right: Filters and Events */}
           <div className="flex-1 min-w-0 flex flex-col h-full">
             <div className="space-y-4 mb-6 flex-shrink-0">
-              <div className="flex items-center justify-between">
+              <div className="hidden md:flex items-center justify-between">
                 <DateFilter
                   selected={dateRange}
                   onChange={handleDateRangeChange}
@@ -402,11 +425,13 @@ export function EventsPage({ initialEvents, initialSources }: EventsPageProps) {
                   Showing events for {format(selectedDate, 'EEEE, MMMM d, yyyy')}
                 </div>
               )}
-              <TagFilter
-                sources={cityFilteredSources}
-                selected={selectedTags}
-                onChange={setSelectedTags}
-              />
+              <div className="hidden md:block">
+                <TagFilter
+                  sources={cityFilteredSources}
+                  selected={selectedTags}
+                  onChange={setSelectedTags}
+                />
+              </div>
             </div>
 
             <div className="flex-1 overflow-y-auto">
@@ -492,6 +517,137 @@ export function EventsPage({ initialEvents, initialSources }: EventsPageProps) {
             >
               Got it
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Mobile Filters Modal */}
+      {showMobileFilters && (
+        <div className="fixed inset-0 bg-black/50 flex items-end z-50 md:hidden">
+          <div className="bg-white rounded-t-2xl w-full max-h-[80vh] overflow-hidden flex flex-col">
+            <div className="flex items-center justify-between p-4 border-b">
+              <h2 className="text-lg font-bold text-gray-900">Filters</h2>
+              <button
+                onClick={() => setShowMobileFilters(false)}
+                className="text-gray-500 hover:text-gray-700 text-xl"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-4 space-y-6">
+              {/* City Filter */}
+              {cities.length > 0 && (
+                <div>
+                  <h3 className="text-sm font-medium text-gray-700 mb-2">City</h3>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      onClick={() => setSelectedCity(null)}
+                      className={`px-3 py-1.5 text-sm rounded-md ${
+                        selectedCity === null
+                          ? 'bg-gray-900 text-white'
+                          : 'bg-gray-100 text-gray-700'
+                      }`}
+                    >
+                      All
+                    </button>
+                    {cities.map((city) => (
+                      <button
+                        key={city}
+                        onClick={() => setSelectedCity(city)}
+                        className={`px-3 py-1.5 text-sm rounded-md ${
+                          selectedCity === city
+                            ? 'bg-gray-900 text-white'
+                            : 'bg-gray-100 text-gray-700'
+                        }`}
+                      >
+                        {city}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Tag Filter */}
+              <div>
+                <h3 className="text-sm font-medium text-gray-700 mb-2">Tags</h3>
+                <TagFilter
+                  sources={cityFilteredSources}
+                  selected={selectedTags}
+                  onChange={setSelectedTags}
+                />
+              </div>
+
+              {/* Sources */}
+              <div>
+                <h3 className="text-sm font-medium text-gray-700 mb-2">Sources</h3>
+                <div className="space-y-1 max-h-60 overflow-y-auto">
+                  <button
+                    onClick={() => setSelectedSources([])}
+                    className={`w-full text-left px-3 py-2 rounded text-sm ${
+                      selectedSources.length === 0
+                        ? 'bg-gray-900 text-white'
+                        : 'bg-gray-100 text-gray-700'
+                    }`}
+                  >
+                    All Sources
+                  </button>
+                  {cityFilteredSources.map((source) => (
+                    <button
+                      key={source.id}
+                      onClick={() => {
+                        if (selectedSources.includes(source.id)) {
+                          setSelectedSources(selectedSources.filter((s) => s !== source.id));
+                        } else {
+                          setSelectedSources([...selectedSources, source.id]);
+                        }
+                      }}
+                      className={`w-full text-left px-3 py-2 rounded text-sm flex items-center gap-2 ${
+                        selectedSources.includes(source.id)
+                          ? 'bg-gray-900 text-white'
+                          : 'bg-gray-100 text-gray-700'
+                      }`}
+                    >
+                      <div className="w-5 h-5 flex-shrink-0 bg-gray-200 rounded overflow-hidden">
+                        {source.logoUrl && (
+                          <img
+                            src={source.logoUrl}
+                            alt=""
+                            className="w-full h-full object-contain"
+                            onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                          />
+                        )}
+                      </div>
+                      <span className="truncate">{source.name}</span>
+                      {source.city && (
+                        <span className="ml-auto text-xs opacity-60">{source.city}</span>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Apply Button */}
+            <div className="p-4 border-t">
+              <button
+                onClick={() => setShowMobileFilters(false)}
+                className="w-full py-3 bg-gray-900 text-white rounded-md font-medium"
+              >
+                Apply Filters
+              </button>
+              {(selectedCity || selectedSources.length > 0 || selectedTags.length > 0) && (
+                <button
+                  onClick={() => {
+                    setSelectedCity(null);
+                    setSelectedSources([]);
+                    setSelectedTags([]);
+                  }}
+                  className="w-full mt-2 py-2 text-gray-600 text-sm"
+                >
+                  Clear All Filters
+                </button>
+              )}
+            </div>
           </div>
         </div>
       )}

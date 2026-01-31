@@ -186,10 +186,10 @@ export function EventCard({ event, source, onDelete, squiggleSettings = {} }: Ev
         rel="noopener noreferrer"
         className="block"
       >
-        <div className="flex items-center gap-3">
-          {/* Source logo - far left */}
+        <div className="flex items-center gap-2 md:gap-3">
+          {/* Source logo - far left (hidden on mobile) */}
           {source && (
-            <div className="flex-shrink-0 w-[60px] h-[60px] bg-gray-100 rounded overflow-hidden flex items-center justify-center">
+            <div className="hidden md:flex flex-shrink-0 w-[60px] h-[60px] bg-gray-100 rounded overflow-hidden items-center justify-center">
               {source.logoUrl ? (
                 <img
                   src={source.logoUrl}
@@ -203,9 +203,9 @@ export function EventCard({ event, source, onDelete, squiggleSettings = {} }: Ev
             </div>
           )}
 
-          {/* Source name - vertical */}
+          {/* Source name - vertical (hidden on mobile) */}
           {source && (
-            <div className="flex-shrink-0 flex items-center justify-center w-[24px] h-[100px]">
+            <div className="hidden md:flex flex-shrink-0 items-center justify-center w-[24px] h-[100px]">
               <span
                 className="font-bold text-[#232223] text-[14px] whitespace-nowrap"
                 style={{
@@ -219,7 +219,7 @@ export function EventCard({ event, source, onDelete, squiggleSettings = {} }: Ev
           )}
 
           {/* Squiggle box with content */}
-          <div className="relative w-[380px] min-h-[125px] flex-shrink-0">
+          <div className="relative w-full md:w-[380px] min-h-[110px] md:min-h-[125px] flex-shrink-0">
             {/* Wiggly border SVG */}
             <svg
               className="absolute inset-0 w-full h-full pointer-events-none"
@@ -246,7 +246,7 @@ export function EventCard({ event, source, onDelete, squiggleSettings = {} }: Ev
               </div>
             )}
 
-            <div className="relative p-5 flex gap-3">
+            <div className="relative p-3 md:p-5 flex gap-2 md:gap-3">
               <div className="flex-1 min-w-0">
                 {/* Event title */}
                 <h3 className="font-bold text-black text-[14px] mb-2">
@@ -266,11 +266,18 @@ export function EventCard({ event, source, onDelete, squiggleSettings = {} }: Ev
                     {event.location}
                   </p>
                 )}
+
+                {/* Source name on mobile */}
+                {source && (
+                  <p className="md:hidden text-[11px] text-gray-500 mt-1">
+                    {source.name}
+                  </p>
+                )}
               </div>
 
               {/* Event image thumbnail */}
               {event.imageUrl && (
-                <div className="flex-shrink-0 w-[100px] h-[100px] border-3 border-[#e8e4dc] overflow-hidden">
+                <div className="flex-shrink-0 w-[70px] h-[70px] md:w-[100px] md:h-[100px] border-3 border-[#e8e4dc] overflow-hidden">
                   <img
                     src={event.imageUrl}
                     alt=""
