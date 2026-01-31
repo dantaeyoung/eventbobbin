@@ -46,6 +46,7 @@ export function SourcesPage({ initialSources }: SourcesPageProps) {
   });
   const [, setTick] = useState(0); // Force re-render for timer
   const [sourceSort, setSourceSort] = useState<SourceSort>('alpha');
+  const [scrapingAll, setScrapingAll] = useState(false);
   const { toasts, addToast, removeToast } = useToasts();
 
   // Load sort preference on mount
@@ -228,6 +229,52 @@ export function SourcesPage({ initialSources }: SourcesPageProps) {
     }
   };
 
+  const handleScrapeAll = async (force: boolean = false) => {
+    const enabledSources = sources.filter((s) => s.enabled);
+    if (enabledSources.length === 0) {
+      addToast('No enabled sources to scrape', 'info');
+      return;
+    }
+
+    setScrapingAll(true);
+    let totalEvents = 0;
+    let successCount = 0;
+    let errorCount = 0;
+
+    for (const source of enabledSources) {
+      // Optimistically show scraping state
+      setSources((prev) =>
+        prev.map((s) => (s.id === source.id ? { ...s, scrapingStartedAt: new Date().toISOString() } : s))
+      );
+
+      try {
+        const result = await api.scrapeSource(source.id, force);
+        if (result.success) {
+          totalEvents += result.eventsFound;
+          successCount++;
+        } else {
+          errorCount++;
+        }
+      } catch {
+        errorCount++;
+      }
+
+      // Refresh sources to update state
+      try {
+        const updatedSources = await api.getSources();
+        setSources(updatedSources);
+      } catch {
+        // ignore
+      }
+    }
+
+    setScrapingAll(false);
+    addToast(
+      `Scraped ${successCount} sources, found ${totalEvents} events${errorCount > 0 ? `, ${errorCount} errors` : ''}`,
+      errorCount > 0 ? 'error' : 'success'
+    );
+  };
+
   return (
     <div className="min-h-screen bg-[#FFF8F0]">
       <header className="bg-white border-b border-gray-200">
@@ -295,28 +342,38 @@ export function SourcesPage({ initialSources }: SourcesPageProps) {
           </div>
         </form>
 
-        {/* Sort options */}
-        <div className="flex items-center gap-2 mb-4">
-          <span className="text-sm text-gray-600">Sort:</span>
+        {/* Sort options and Scrape All */}
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-gray-600">Sort:</span>
+            <button
+              onClick={() => setSourceSort('alpha')}
+              className={`px-3 py-1 text-sm rounded-md ${
+                sourceSort === 'alpha'
+                  ? 'bg-gray-900 text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              A-Z
+            </button>
+            <button
+              onClick={() => setSourceSort('lastScraped')}
+              className={`px-3 py-1 text-sm rounded-md ${
+                sourceSort === 'lastScraped'
+                  ? 'bg-gray-900 text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              Stale
+            </button>
+          </div>
           <button
-            onClick={() => setSourceSort('alpha')}
-            className={`px-3 py-1 text-sm rounded-md ${
-              sourceSort === 'alpha'
-                ? 'bg-gray-900 text-white'
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-            }`}
+            onClick={(e) => handleScrapeAll(e.shiftKey)}
+            disabled={scrapingAll || hasScrapingSource}
+            title="Scrape all enabled sources. Hold Shift to force re-scrape."
+            className="px-4 py-1.5 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
           >
-            A-Z
-          </button>
-          <button
-            onClick={() => setSourceSort('lastScraped')}
-            className={`px-3 py-1 text-sm rounded-md ${
-              sourceSort === 'lastScraped'
-                ? 'bg-gray-900 text-white'
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-            }`}
-          >
-            Stale
+            {scrapingAll ? 'Scraping All...' : 'Scrape All'}
           </button>
         </div>
 
