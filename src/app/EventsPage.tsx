@@ -4,7 +4,6 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { format, startOfDay, endOfDay, endOfWeek, addDays, startOfWeek } from 'date-fns';
 import { Event, Source } from '@/lib/types';
 import { EventList } from '@/components/EventList';
-import { SourceFilter } from '@/components/SourceFilter';
 import { DateFilter, DateRange } from '@/components/DateFilter';
 import { Calendar } from '@/components/Calendar';
 import { TagFilter } from '@/components/TagFilter';
@@ -246,13 +245,57 @@ export function EventsPage({ initialEvents, initialSources }: EventsPageProps) {
 
       <main className="max-w-3xl mx-auto px-4 py-6">
         <div className="flex gap-6">
-          {/* Left: Calendar */}
-          <div className="flex-shrink-0">
+          {/* Left: Calendar and Sources */}
+          <div className="flex-shrink-0 w-[220px]">
             <Calendar
               selectedDate={selectedDate}
               onSelectDate={handleCalendarSelect}
               eventDates={eventDates}
             />
+
+            {/* Sources List */}
+            <div className="mt-6">
+              <h3 className="text-sm font-medium text-gray-700 mb-2">Sources</h3>
+              <div className="space-y-1">
+                <button
+                  onClick={() => setSelectedSources([])}
+                  className={`w-full text-left px-2 py-1.5 rounded text-sm transition-colors ${
+                    selectedSources.length === 0
+                      ? 'bg-gray-900 text-white'
+                      : 'hover:bg-gray-100 text-gray-700'
+                  }`}
+                >
+                  All Sources
+                </button>
+                {sources.map((source) => (
+                  <button
+                    key={source.id}
+                    onClick={() => {
+                      if (selectedSources.includes(source.id)) {
+                        setSelectedSources(selectedSources.filter((s) => s !== source.id));
+                      } else {
+                        setSelectedSources([...selectedSources, source.id]);
+                      }
+                    }}
+                    className={`w-full text-left px-2 py-1.5 rounded text-sm transition-colors flex items-center gap-2 ${
+                      selectedSources.includes(source.id)
+                        ? 'bg-gray-900 text-white'
+                        : 'hover:bg-gray-100 text-gray-700'
+                    }`}
+                  >
+                    {source.logoUrl && (
+                      <img
+                        src={source.logoUrl}
+                        alt=""
+                        className="w-4 h-4 object-contain rounded flex-shrink-0"
+                        onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                      />
+                    )}
+                    <span className="truncate">{source.name}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
 
           {/* Right: Filters and Events */}
@@ -276,11 +319,6 @@ export function EventsPage({ initialEvents, initialSources }: EventsPageProps) {
                 sources={sources}
                 selected={selectedTags}
                 onChange={setSelectedTags}
-              />
-              <SourceFilter
-                sources={sources}
-                selected={selectedSources}
-                onChange={setSelectedSources}
               />
             </div>
 
