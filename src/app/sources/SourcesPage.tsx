@@ -1,15 +1,12 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { Source } from '@/lib/types';
 import { format } from 'date-fns';
+import { ToastContainer, useToasts } from '@/components/Toast';
 
-interface ScrapingState {
-  [sourceId: string]: number; // timestamp when scrape started
-}
-
-function formatElapsed(startTime: number): string {
-  const seconds = Math.floor((Date.now() - startTime) / 1000);
+function formatElapsed(startTime: string): string {
+  const seconds = Math.floor((Date.now() - new Date(startTime).getTime()) / 1000);
   const mins = Math.floor(seconds / 60);
   const secs = seconds % 60;
   return `${mins}:${secs.toString().padStart(2, '0')}`;
@@ -25,18 +22,27 @@ export function SourcesPage({ initialSources }: SourcesPageProps) {
   const [url, setUrl] = useState('');
   const [instructions, setInstructions] = useState('');
   const [adding, setAdding] = useState(false);
-  const [scraping, setScraping] = useState<ScrapingState>({});
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editInstructions, setEditInstructions] = useState('');
   const [, setTick] = useState(0); // Force re-render for timer
+  const { toasts, addToast, removeToast } = useToasts();
 
-  // Timer tick for elapsed time display
+  // Check for any sources currently scraping
+  const hasScrapingSource = sources.some((s) => s.scrapingStartedAt);
+
+  // Timer tick for elapsed time display + poll for updates while scraping
   useEffect(() => {
-    const hasActive = Object.keys(scraping).length > 0;
-    if (!hasActive) return;
-    const interval = setInterval(() => setTick((t) => t + 1), 1000);
+    if (!hasScrapingSource) return;
+    const interval = setInterval(async () => {
+      setTick((t) => t + 1);
+      // Poll for source updates every 2 seconds
+      const res = await fetch('/api/sources');
+      if (res.ok) {
+        setSources(await res.json());
+      }
+    }, 2000);
     return () => clearInterval(interval);
-  }, [scraping]);
+  }, [hasScrapingSource]);
 
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -101,25 +107,29 @@ export function SourcesPage({ initialSources }: SourcesPageProps) {
   };
 
   const handleScrape = async (id: string, force: boolean = false) => {
-    setScraping((prev) => ({ ...prev, [id]: Date.now() }));
-    try {
-      const url = `/api/sources/${id}/scrape${force ? '?force=true' : ''}`;
-      const res = await fetch(url, { method: 'POST' });
-      const result = await res.json();
-      alert(
-        result.success
-          ? `Found ${result.eventsFound} events${result.skipped ? ' (no changes)' : ''}`
-          : `Error: ${result.error}`
-      );
-      // Refresh sources to get updated lastScrapedAt
-      const sourcesRes = await fetch('/api/sources');
-      setSources(await sourcesRes.json());
-    } finally {
-      setScraping((prev) => {
-        const { [id]: _, ...rest } = prev;
-        return rest;
-      });
+    const scrapeUrl = `/api/sources/${id}/scrape${force ? '?force=true' : ''}`;
+    const res = await fetch(scrapeUrl, { method: 'POST' });
+    const result = await res.json();
+
+    if (result.alreadyScraping) {
+      addToast('Already scraping this source', 'info');
+      return;
     }
+
+    if (result.success) {
+      addToast(
+        result.skipped
+          ? 'No changes detected'
+          : `Found ${result.eventsFound} event${result.eventsFound !== 1 ? 's' : ''}`,
+        'success'
+      );
+    } else {
+      addToast(`Error: ${result.error}`, 'error');
+    }
+
+    // Refresh sources to get updated state
+    const sourcesRes = await fetch('/api/sources');
+    setSources(await sourcesRes.json());
   };
 
   return (
@@ -241,12 +251,12 @@ export function SourcesPage({ initialSources }: SourcesPageProps) {
                 <div className="flex items-center gap-2 ml-4">
                   <button
                     onClick={(e) => handleScrape(source.id, e.shiftKey)}
-                    disabled={!!scraping[source.id]}
+                    disabled={!!source.scrapingStartedAt}
                     title="Hold Shift to force re-scrape (ignore cache)"
                     className="px-3 py-1.5 text-sm bg-gray-100 rounded-md hover:bg-gray-200 disabled:opacity-50"
                   >
-                    {scraping[source.id]
-                      ? `Scraping... ${formatElapsed(scraping[source.id])}`
+                    {source.scrapingStartedAt
+                      ? `Scraping... ${formatElapsed(source.scrapingStartedAt)}`
                       : 'Scrape Now'}
                   </button>
                   <button
@@ -277,6 +287,8 @@ export function SourcesPage({ initialSources }: SourcesPageProps) {
           )}
         </div>
       </main>
+
+      <ToastContainer toasts={toasts} onRemove={removeToast} />
     </div>
   );
 }

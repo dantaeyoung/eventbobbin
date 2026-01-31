@@ -4,9 +4,10 @@ import { EventCard } from './EventCard';
 interface EventListProps {
   events: Event[];
   sources: Source[];
+  onDeleteEvent?: (event: Event) => void;
 }
 
-export function EventList({ events, sources }: EventListProps) {
+export function EventList({ events, sources, onDeleteEvent }: EventListProps) {
   const sourceMap = new Map(sources.map((s) => [s.id, s]));
 
   if (events.length === 0) {
@@ -24,6 +25,7 @@ export function EventList({ events, sources }: EventListProps) {
           key={event.id}
           event={event}
           source={sourceMap.get(event.sourceId)}
+          onDelete={onDeleteEvent}
         />
       ))}
     </div>

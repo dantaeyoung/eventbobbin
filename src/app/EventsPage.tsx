@@ -68,6 +68,7 @@ export function EventsPage({ initialEvents, initialSources }: EventsPageProps) {
   const [mounted, setMounted] = useState(false);
   const [loading, setLoading] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
+  const [eventToDelete, setEventToDelete] = useState<Event | null>(null);
 
   // Compute event dates for calendar dots (filtered by selected sources)
   const eventDates = useMemo(() => {
@@ -144,6 +145,16 @@ export function EventsPage({ initialEvents, initialSources }: EventsPageProps) {
     fetchEvents();
   }, [fetchEvents]);
 
+  const handleDeleteEvent = async () => {
+    if (!eventToDelete) return;
+    const res = await fetch(`/api/events/${eventToDelete.id}`, { method: 'DELETE' });
+    if (res.ok) {
+      setEvents(events.filter((e) => e.id !== eventToDelete.id));
+      setAllEvents(allEvents.filter((e) => e.id !== eventToDelete.id));
+    }
+    setEventToDelete(null);
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="bg-white border-b border-gray-200">
@@ -204,10 +215,36 @@ export function EventsPage({ initialEvents, initialSources }: EventsPageProps) {
               />
             </div>
 
-            <EventList events={events} sources={sources} />
+            <EventList events={events} sources={sources} onDeleteEvent={setEventToDelete} />
           </div>
         </div>
       </main>
+
+      {/* Delete Confirmation Modal */}
+      {eventToDelete && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg max-w-sm w-full p-6">
+            <h2 className="text-lg font-bold text-gray-900 mb-2">Remove Event?</h2>
+            <p className="text-sm text-gray-600 mb-4">
+              Are you sure you want to remove "{eventToDelete.title}"? This won't affect the source website.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setEventToDelete(null)}
+                className="flex-1 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteEvent}
+                className="flex-1 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
+              >
+                Remove
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Help Modal */}
       {showHelp && (

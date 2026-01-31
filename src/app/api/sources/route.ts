@@ -27,6 +27,7 @@ export async function POST(request: NextRequest) {
       lastContentHash: null,
       scrapeIntervalHours: body.scrapeIntervalHours || 24,
       scrapeInstructions: body.scrapeInstructions || null,
+      scrapingStartedAt: null,
     });
     return NextResponse.json(source, { status: 201 });
   } catch (error) {

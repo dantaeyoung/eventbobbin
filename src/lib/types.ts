@@ -7,6 +7,7 @@ export interface Source {
   lastContentHash: string | null;
   scrapeIntervalHours: number;
   scrapeInstructions: string | null; // e.g., "Only extract NYC events"
+  scrapingStartedAt: string | null; // null = not scraping, timestamp = in progress
   createdAt: string;
 }
 
