@@ -9,7 +9,7 @@ import { DateFilter, DateRange } from '@/components/DateFilter';
 import { Calendar } from '@/components/Calendar';
 import { TagFilter } from '@/components/TagFilter';
 import { api } from '@/lib/api';
-import { fetchSquiggleSettings, setSquiggleSettingsCache } from '@/lib/squiggleSettings';
+import { fetchSquiggleSettings, setSquiggleSettingsCache, SquiggleSettings } from '@/lib/squiggleSettings';
 
 const DATE_RANGE_KEY = 'eventbobbin-daterange';
 
@@ -65,6 +65,7 @@ export function EventsPage({ initialEvents, initialSources }: EventsPageProps) {
   const [events, setEvents] = useState<Event[]>(initialEvents);
   const [allEvents, setAllEvents] = useState<Event[]>(initialEvents);
   const [sources] = useState<Source[]>(initialSources);
+  const [squiggleSettings, setSquiggleSettings] = useState<SquiggleSettings>({});
   const [selectedSources, setSelectedSources] = useState<string[]>([]);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [dateRange, setDateRange] = useState<DateRange | null>('week');
@@ -118,7 +119,10 @@ export function EventsPage({ initialEvents, initialSources }: EventsPageProps) {
       .then(setAllEvents)
       .catch(console.error);
     // Load squiggle settings
-    fetchSquiggleSettings().then(setSquiggleSettingsCache);
+    fetchSquiggleSettings().then((settings) => {
+      setSquiggleSettingsCache(settings);
+      setSquiggleSettings(settings);
+    });
   }, []);
 
   // Save date range to localStorage when it changes
@@ -280,7 +284,7 @@ export function EventsPage({ initialEvents, initialSources }: EventsPageProps) {
               />
             </div>
 
-            <EventList events={events} sources={sources} onDeleteEvent={setEventToDelete} />
+            <EventList events={events} sources={sources} onDeleteEvent={setEventToDelete} squiggleSettings={squiggleSettings} />
           </div>
         </div>
       </main>

@@ -1,11 +1,13 @@
 import { Event, Source } from '@/lib/types';
 import { EventCard } from './EventCard';
 import { format } from 'date-fns';
+import { SquiggleSettings } from '@/lib/squiggleSettings';
 
 interface EventListProps {
   events: Event[];
   sources: Source[];
   onDeleteEvent?: (event: Event) => void;
+  squiggleSettings?: SquiggleSettings;
 }
 
 // Group events by date
@@ -22,7 +24,7 @@ function groupEventsByDate(events: Event[]): Map<string, Event[]> {
   return groups;
 }
 
-export function EventList({ events, sources, onDeleteEvent }: EventListProps) {
+export function EventList({ events, sources, onDeleteEvent, squiggleSettings }: EventListProps) {
   const sourceMap = new Map(sources.map((s) => [s.id, s]));
 
   if (events.length === 0) {
@@ -58,6 +60,7 @@ export function EventList({ events, sources, onDeleteEvent }: EventListProps) {
                   event={event}
                   source={sourceMap.get(event.sourceId)}
                   onDelete={onDeleteEvent}
+                  squiggleSettings={squiggleSettings}
                 />
               ))}
             </div>

@@ -1,19 +1,20 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useMemo } from 'react';
 import { format } from 'date-fns';
 import { Event, Source } from '@/lib/types';
 import { getTagColor } from '@/lib/tagColors';
 import {
-  getAverageSquigglePosition,
   positionToSquiggleParams,
   TagSquigglePosition,
+  SquiggleSettings,
 } from '@/lib/squiggleSettings';
 
 interface EventCardProps {
   event: Event;
   source?: Source;
   onDelete?: (event: Event) => void;
+  squiggleSettings?: SquiggleSettings;
 }
 
 function formatDateForGoogle(date: string): string {
@@ -110,9 +111,7 @@ function generateWigglyPath(
   return pathParts.join(' ');
 }
 
-export function EventCard({ event, source, onDelete }: EventCardProps) {
-  const [squigglePosition, setSquigglePosition] = useState<TagSquigglePosition>({ x: 0, y: 0 });
-
+export function EventCard({ event, source, onDelete, squiggleSettings = {} }: EventCardProps) {
   const startDate = new Date(event.startDate);
   const hasTime = !event.startDate.includes('T00:00:00');
   const timeStr = hasTime ? format(startDate, 'h:mma').toLowerCase() : null;
@@ -121,12 +120,26 @@ export function EventCard({ event, source, onDelete }: EventCardProps) {
     ? source.tags.split(',').map((t) => t.trim().toLowerCase()).filter(Boolean)
     : [];
 
-  useEffect(() => {
-    if (tags.length > 0) {
-      const pos = getAverageSquigglePosition(tags);
-      setSquigglePosition(pos);
+  // Calculate squiggle position from passed settings
+  const squigglePosition = useMemo(() => {
+    if (tags.length === 0) return { x: 0, y: 0 };
+
+    let totalX = 0;
+    let totalY = 0;
+    let count = 0;
+
+    for (const tag of tags) {
+      const pos = squiggleSettings[tag];
+      if (pos) {
+        totalX += pos.x;
+        totalY += pos.y;
+        count++;
+      }
     }
-  }, [source?.tags]);
+
+    if (count === 0) return { x: 0, y: 0 };
+    return { x: totalX / count, y: totalY / count };
+  }, [tags, squiggleSettings]);
 
   const wigglyPath = generateWigglyPath(380, 130, event.id, squigglePosition);
 
