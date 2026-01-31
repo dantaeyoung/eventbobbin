@@ -1,11 +1,12 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { format, startOfDay, endOfDay, endOfWeek, endOfMonth, addDays } from 'date-fns';
 import { Event, Source } from '@/lib/types';
 import { EventList } from '@/components/EventList';
 import { SourceFilter } from '@/components/SourceFilter';
 import { DateFilter, DateRange } from '@/components/DateFilter';
+import { Calendar } from '@/components/Calendar';
 
 const DATE_RANGE_KEY = 'eventbobbin-daterange';
 
@@ -56,16 +57,32 @@ function loadDateRange(): DateRange {
 
 export function EventsPage({ initialEvents, initialSources }: EventsPageProps) {
   const [events, setEvents] = useState<Event[]>(initialEvents);
+  const [allEvents, setAllEvents] = useState<Event[]>(initialEvents);
   const [sources] = useState<Source[]>(initialSources);
   const [selectedSources, setSelectedSources] = useState<string[]>([]);
   const [dateRange, setDateRange] = useState<DateRange>('month');
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [mounted, setMounted] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [showHelp, setShowHelp] = useState(false);
+
+  // Compute event dates for calendar dots
+  const eventDates = useMemo(() => {
+    const dates = new Set<string>();
+    allEvents.forEach((e) => {
+      dates.add(e.startDate.split('T')[0]);
+    });
+    return dates;
+  }, [allEvents]);
 
   // Load date range from localStorage on mount
   useEffect(() => {
     setDateRange(loadDateRange());
     setMounted(true);
+    // Fetch all future events for calendar dots
+    fetch('/api/events?from=' + format(startOfDay(new Date()), "yyyy-MM-dd'T'HH:mm:ss"))
+      .then((r) => r.json())
+      .then(setAllEvents);
   }, []);
 
   // Save date range to localStorage when it changes
@@ -75,6 +92,15 @@ export function EventsPage({ initialEvents, initialSources }: EventsPageProps) {
     }
   }, [dateRange, mounted]);
 
+  const handleDateRangeChange = (range: DateRange) => {
+    setDateRange(range);
+    setSelectedDate(null); // Clear calendar selection
+  };
+
+  const handleCalendarSelect = (date: Date | null) => {
+    setSelectedDate(date);
+  };
+
   const fetchEvents = useCallback(async () => {
     setLoading(true);
     try {
@@ -82,10 +108,18 @@ export function EventsPage({ initialEvents, initialSources }: EventsPageProps) {
       if (selectedSources.length > 0) {
         params.set('sources', selectedSources.join(','));
       }
-      const range = getDateRange(dateRange);
-      if (range) {
-        if (range.from) params.set('from', range.from);
-        if (range.to) params.set('to', range.to);
+
+      if (selectedDate) {
+        // Calendar date selected - show just that day
+        params.set('from', format(startOfDay(selectedDate), "yyyy-MM-dd'T'HH:mm:ss"));
+        params.set('to', format(endOfDay(selectedDate), "yyyy-MM-dd'T'HH:mm:ss"));
+      } else {
+        // Use date range filter
+        const range = getDateRange(dateRange);
+        if (range) {
+          if (range.from) params.set('from', range.from);
+          if (range.to) params.set('to', range.to);
+        }
       }
 
       const res = await fetch(`/api/events?${params}`);
@@ -94,7 +128,7 @@ export function EventsPage({ initialEvents, initialSources }: EventsPageProps) {
     } finally {
       setLoading(false);
     }
-  }, [selectedSources, dateRange]);
+  }, [selectedSources, dateRange, selectedDate]);
 
   useEffect(() => {
     fetchEvents();
@@ -106,33 +140,109 @@ export function EventsPage({ initialEvents, initialSources }: EventsPageProps) {
         <div className="max-w-3xl mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <h1 className="text-xl font-bold text-gray-900">EventBobbin</h1>
-            <a
-              href="/sources"
-              className="text-sm text-gray-600 hover:text-gray-900"
-            >
-              Manage Sources
-            </a>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setShowHelp(true)}
+                className="w-6 h-6 rounded-full bg-gray-100 text-gray-600 hover:bg-gray-200 text-sm font-medium"
+                title="About EventBobbin"
+              >
+                ?
+              </button>
+              <a
+                href="/sources"
+                className="text-sm text-gray-600 hover:text-gray-900"
+              >
+                Manage Sources
+              </a>
+            </div>
           </div>
         </div>
       </header>
 
       <main className="max-w-3xl mx-auto px-4 py-6">
-        <div className="space-y-4 mb-6">
-          <div className="flex items-center justify-between">
-            <DateFilter selected={dateRange} onChange={setDateRange} />
-            {loading && (
-              <span className="text-sm text-gray-500">Loading...</span>
-            )}
+        <div className="flex gap-6">
+          {/* Left: Calendar */}
+          <div className="flex-shrink-0">
+            <Calendar
+              selectedDate={selectedDate}
+              onSelectDate={handleCalendarSelect}
+              eventDates={eventDates}
+            />
           </div>
-          <SourceFilter
-            sources={sources}
-            selected={selectedSources}
-            onChange={setSelectedSources}
-          />
-        </div>
 
-        <EventList events={events} sources={sources} />
+          {/* Right: Filters and Events */}
+          <div className="flex-1 min-w-0">
+            <div className="space-y-4 mb-6">
+              <div className="flex items-center justify-between">
+                <DateFilter
+                  selected={selectedDate ? 'today' : dateRange}
+                  onChange={handleDateRangeChange}
+                />
+                {loading && (
+                  <span className="text-sm text-gray-500">Loading...</span>
+                )}
+              </div>
+              {selectedDate && (
+                <div className="text-sm text-gray-600">
+                  Showing events for {format(selectedDate, 'EEEE, MMMM d, yyyy')}
+                </div>
+              )}
+              <SourceFilter
+                sources={sources}
+                selected={selectedSources}
+                onChange={setSelectedSources}
+              />
+            </div>
+
+            <EventList events={events} sources={sources} />
+          </div>
+        </div>
       </main>
+
+      {/* Help Modal */}
+      {showHelp && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg max-w-md w-full p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-bold text-gray-900">About EventBobbin</h2>
+              <button
+                onClick={() => setShowHelp(false)}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="space-y-3 text-sm text-gray-600">
+              <p>
+                <strong>EventBobbin</strong> aggregates events from multiple websites into one place.
+              </p>
+              <p>
+                <strong>How it works:</strong>
+              </p>
+              <ol className="list-decimal list-inside space-y-1 ml-2">
+                <li>Add event sources (websites with event listings)</li>
+                <li>Click "Scrape Now" to extract events using AI</li>
+                <li>Events appear here, filterable by date and source</li>
+              </ol>
+              <p>
+                <strong>Tips:</strong>
+              </p>
+              <ul className="list-disc list-inside space-y-1 ml-2">
+                <li>Blue dots on calendar = dates with events</li>
+                <li>Click a calendar date to filter to that day</li>
+                <li>Hold Shift + click "Scrape Now" to force re-scrape</li>
+                <li>Scraping auto-skips if page hasn't changed</li>
+              </ul>
+            </div>
+            <button
+              onClick={() => setShowHelp(false)}
+              className="mt-4 w-full py-2 bg-gray-900 text-white rounded-md hover:bg-gray-800"
+            >
+              Got it
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
