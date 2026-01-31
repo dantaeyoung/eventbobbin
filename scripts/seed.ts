@@ -24,6 +24,7 @@ for (const source of initialSources) {
       lastScrapedAt: null,
       lastContentHash: null,
       scrapeIntervalHours: 24,
+      scrapeInstructions: null,
     });
     console.log(`Added: ${source.name}`);
     added++;

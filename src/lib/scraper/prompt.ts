@@ -1,17 +1,22 @@
 export function buildExtractionPrompt(
   pageText: string,
   links: { text: string; href: string }[],
-  currentDate: string
+  currentDate: string,
+  scrapeInstructions?: string | null
 ): string {
   const linksText = links
     .slice(0, 100) // Limit to avoid token overflow
     .map((l) => `- "${l.text}" -> ${l.href}`)
     .join('\n');
 
+  const instructionsBlock = scrapeInstructions
+    ? `\nSPECIAL INSTRUCTIONS: ${scrapeInstructions}\n`
+    : '';
+
   return `You are an event extraction assistant. Extract all events from the following webpage content.
 
 CURRENT DATE: ${currentDate}
-
+${instructionsBlock}
 IMPORTANT RULES:
 1. Only extract actual events with specific dates. Do not invent events.
 2. If no events are found, return an empty array: []

@@ -51,9 +51,12 @@ export function SourcesPage({ initialSources }: SourcesPageProps) {
   const [sources, setSources] = useState<Source[]>(initialSources);
   const [name, setName] = useState('');
   const [url, setUrl] = useState('');
+  const [instructions, setInstructions] = useState('');
   const [adding, setAdding] = useState(false);
   const [scraping, setScraping] = useState<ScrapingState>({});
   const [mounted, setMounted] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editInstructions, setEditInstructions] = useState('');
   const [, setTick] = useState(0); // Force re-render for timer
 
   // Load scraping state from localStorage on mount
@@ -86,16 +89,35 @@ export function SourcesPage({ initialSources }: SourcesPageProps) {
       const res = await fetch('/api/sources', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, url }),
+        body: JSON.stringify({ name, url, scrapeInstructions: instructions || null }),
       });
       if (res.ok) {
         const source = await res.json();
         setSources([...sources, source]);
         setName('');
         setUrl('');
+        setInstructions('');
       }
     } finally {
       setAdding(false);
+    }
+  };
+
+  const handleEditInstructions = (source: Source) => {
+    setEditingId(source.id);
+    setEditInstructions(source.scrapeInstructions || '');
+  };
+
+  const handleSaveInstructions = async (id: string) => {
+    const res = await fetch(`/api/sources/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ scrapeInstructions: editInstructions || null }),
+    });
+    if (res.ok) {
+      const updated = await res.json();
+      setSources(sources.map((s) => (s.id === id ? updated : s)));
+      setEditingId(null);
     }
   };
 
@@ -158,28 +180,39 @@ export function SourcesPage({ initialSources }: SourcesPageProps) {
       <main className="max-w-3xl mx-auto px-4 py-6">
         <form onSubmit={handleAdd} className="mb-8 p-4 bg-white rounded-lg border border-gray-200">
           <h2 className="font-semibold mb-4">Add New Source</h2>
-          <div className="flex gap-3">
-            <input
-              type="text"
-              placeholder="Source name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-900"
-            />
-            <input
-              type="url"
-              placeholder="https://example.com/events"
-              value={url}
-              onChange={(e) => setUrl(e.target.value)}
-              className="flex-[2] px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-900"
-            />
-            <button
-              type="submit"
-              disabled={adding || !name || !url}
-              className="px-4 py-2 bg-gray-900 text-white rounded-md hover:bg-gray-800 disabled:opacity-50"
-            >
-              {adding ? 'Adding...' : 'Add'}
-            </button>
+          <div className="space-y-3">
+            <div className="flex gap-3">
+              <input
+                type="text"
+                placeholder="Source name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-900"
+              />
+              <input
+                type="url"
+                placeholder="https://example.com/events"
+                value={url}
+                onChange={(e) => setUrl(e.target.value)}
+                className="flex-[2] px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-900"
+              />
+            </div>
+            <div className="flex gap-3">
+              <input
+                type="text"
+                placeholder="Filter instructions (optional) e.g., 'Only NYC events'"
+                value={instructions}
+                onChange={(e) => setInstructions(e.target.value)}
+                className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-900 text-sm"
+              />
+              <button
+                type="submit"
+                disabled={adding || !name || !url}
+                className="px-4 py-2 bg-gray-900 text-white rounded-md hover:bg-gray-800 disabled:opacity-50"
+              >
+                {adding ? 'Adding...' : 'Add'}
+              </button>
+            </div>
           </div>
         </form>
 
@@ -207,6 +240,45 @@ export function SourcesPage({ initialSources }: SourcesPageProps) {
                       ? `Last scraped: ${format(new Date(source.lastScrapedAt), 'MMM d, h:mm a')}`
                       : 'Never scraped'}
                   </div>
+                  {editingId === source.id ? (
+                    <div className="flex gap-2 mt-2">
+                      <input
+                        type="text"
+                        value={editInstructions}
+                        onChange={(e) => setEditInstructions(e.target.value)}
+                        placeholder="Filter instructions (e.g., 'Only NYC events')"
+                        className="flex-1 px-2 py-1 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-900"
+                        autoFocus
+                      />
+                      <button
+                        onClick={() => handleSaveInstructions(source.id)}
+                        className="px-2 py-1 text-sm bg-gray-900 text-white rounded-md hover:bg-gray-800"
+                      >
+                        Save
+                      </button>
+                      <button
+                        onClick={() => setEditingId(null)}
+                        className="px-2 py-1 text-sm bg-gray-100 rounded-md hover:bg-gray-200"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  ) : source.scrapeInstructions ? (
+                    <div
+                      onClick={() => handleEditInstructions(source)}
+                      className="text-sm text-purple-600 mt-1 cursor-pointer hover:text-purple-800"
+                      title="Click to edit"
+                    >
+                      Filter: {source.scrapeInstructions}
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => handleEditInstructions(source)}
+                      className="text-sm text-gray-400 mt-1 hover:text-gray-600"
+                    >
+                      + Add filter instructions
+                    </button>
+                  )}
                 </div>
                 <div className="flex items-center gap-2 ml-4">
                   <button

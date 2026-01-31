@@ -8,10 +8,11 @@ const openai = new OpenAI({
 
 export async function extractEvents(
   pageText: string,
-  links: { text: string; href: string }[]
+  links: { text: string; href: string }[],
+  scrapeInstructions?: string | null
 ): Promise<ExtractedEvent[]> {
   const currentDate = new Date().toISOString().split('T')[0];
-  const prompt = buildExtractionPrompt(pageText, links, currentDate);
+  const prompt = buildExtractionPrompt(pageText, links, currentDate, scrapeInstructions);
 
   const response = await openai.chat.completions.create({
     model: 'gpt-4o-mini',

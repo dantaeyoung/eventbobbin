@@ -18,6 +18,7 @@ db.exec(`
     lastScrapedAt TEXT,
     lastContentHash TEXT,
     scrapeIntervalHours INTEGER NOT NULL DEFAULT 24,
+    scrapeInstructions TEXT,
     createdAt TEXT NOT NULL DEFAULT (datetime('now'))
   );
 
@@ -50,6 +51,13 @@ try {
   // Column already exists, ignore
 }
 
+// Migration: Add scrapeInstructions column if it doesn't exist
+try {
+  db.exec(`ALTER TABLE sources ADD COLUMN scrapeInstructions TEXT`);
+} catch {
+  // Column already exists, ignore
+}
+
 // Source queries
 export function getAllSources(): Source[] {
   return db.prepare('SELECT * FROM sources ORDER BY name').all() as Source[];
@@ -65,8 +73,8 @@ export function getSourceById(id: string): Source | undefined {
 
 export function createSource(source: Omit<Source, 'createdAt'>): Source {
   const stmt = db.prepare(`
-    INSERT INTO sources (id, name, url, enabled, lastScrapedAt, lastContentHash, scrapeIntervalHours)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO sources (id, name, url, enabled, lastScrapedAt, lastContentHash, scrapeIntervalHours, scrapeInstructions)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
   `);
   stmt.run(
     source.id,
@@ -75,7 +83,8 @@ export function createSource(source: Omit<Source, 'createdAt'>): Source {
     source.enabled ? 1 : 0,
     source.lastScrapedAt,
     source.lastContentHash,
-    source.scrapeIntervalHours
+    source.scrapeIntervalHours,
+    source.scrapeInstructions
   );
   return getSourceById(source.id)!;
 }
@@ -110,6 +119,10 @@ export function updateSource(id: string, updates: Partial<Source>): Source | und
   if (updates.scrapeIntervalHours !== undefined) {
     fields.push('scrapeIntervalHours = ?');
     values.push(updates.scrapeIntervalHours);
+  }
+  if (updates.scrapeInstructions !== undefined) {
+    fields.push('scrapeInstructions = ?');
+    values.push(updates.scrapeInstructions);
   }
 
   if (fields.length === 0) return current;
