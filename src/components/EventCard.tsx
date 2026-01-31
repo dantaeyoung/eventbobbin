@@ -141,7 +141,7 @@ export function EventCard({ event, source, onDelete, squiggleSettings = {} }: Ev
     return { x: totalX / count, y: totalY / count };
   }, [tags, squiggleSettings]);
 
-  const wigglyPath = generateWigglyPath(380, 130, event.id, squigglePosition);
+  const wigglyPath = generateWigglyPath(380, 125, event.id, squigglePosition);
 
   return (
     <div className="group relative">
@@ -186,20 +186,28 @@ export function EventCard({ event, source, onDelete, squiggleSettings = {} }: Ev
         rel="noopener noreferrer"
         className="block"
       >
-        <div className="flex items-center gap-2">
-          {/* Source logo and name - vertical */}
+        <div className="flex items-center gap-3">
+          {/* Source logo - far left */}
           {source && (
-            <div className="flex-shrink-0 flex flex-col items-center justify-center w-[24px] h-[100px] gap-2">
-              {source.logoUrl && (
+            <div className="flex-shrink-0 w-[60px] h-[60px] bg-gray-100 rounded overflow-hidden flex items-center justify-center">
+              {source.logoUrl ? (
                 <img
                   src={source.logoUrl}
                   alt=""
-                  className="w-5 h-5 object-contain rounded flex-shrink-0"
+                  className="w-full h-full object-contain"
                   onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
                 />
+              ) : (
+                <span className="text-[10px] text-gray-400 text-center px-1">{source.name.slice(0, 12)}</span>
               )}
+            </div>
+          )}
+
+          {/* Source name - vertical */}
+          {source && (
+            <div className="flex-shrink-0 flex items-center justify-center w-[24px] h-[100px]">
               <span
-                className="font-bold text-[#2e32ff] text-[14px] whitespace-nowrap"
+                className="font-bold text-[#232223] text-[14px] whitespace-nowrap"
                 style={{
                   writingMode: 'vertical-rl',
                   transform: 'rotate(180deg)',
@@ -211,28 +219,28 @@ export function EventCard({ event, source, onDelete, squiggleSettings = {} }: Ev
           )}
 
           {/* Squiggle box with content */}
-          <div className="relative w-[380px] min-h-[130px] flex-shrink-0">
+          <div className="relative w-[380px] min-h-[125px] flex-shrink-0">
             {/* Wiggly border SVG */}
             <svg
               className="absolute inset-0 w-full h-full pointer-events-none"
               preserveAspectRatio="none"
-              viewBox="0 0 380 130"
+              viewBox="0 0 380 125"
             >
               <path
                 d={wigglyPath}
                 fill="white"
                 stroke="#d3d3d3"
-                strokeWidth="3"
+                strokeWidth="2"
                 strokeLinecap="round"
                 strokeLinejoin="round"
               />
             </svg>
 
-            {/* Time badge - upper right, rotated */}
+            {/* Time badge - upper left, rotated */}
             {timeStr && (
               <div
-                className="absolute -top-2 -right-2 bg-[#2e32ff] text-white text-[12px] font-bold px-2 py-1 rounded-md z-10"
-                style={{ transform: 'rotate(15deg)' }}
+                className="absolute -top-3 -left-2 bg-[#2e32ff] text-white text-[12px] font-bold px-2 py-1 rounded-md z-10"
+                style={{ transform: 'rotate(-20deg)' }}
               >
                 {timeStr}
               </div>
@@ -241,7 +249,7 @@ export function EventCard({ event, source, onDelete, squiggleSettings = {} }: Ev
             <div className="relative p-5 flex gap-3">
               <div className="flex-1 min-w-0">
                 {/* Event title */}
-                <h3 className="font-bold text-black text-[14px] mb-2 pr-12">
+                <h3 className="font-bold text-black text-[14px] mb-2">
                   {event.title}
                 </h3>
 
@@ -262,7 +270,7 @@ export function EventCard({ event, source, onDelete, squiggleSettings = {} }: Ev
 
               {/* Event image thumbnail */}
               {event.imageUrl && (
-                <div className="flex-shrink-0 w-20 h-20 rounded overflow-hidden">
+                <div className="flex-shrink-0 w-[100px] h-[100px] border-3 border-[#e8e4dc] overflow-hidden">
                   <img
                     src={event.imageUrl}
                     alt=""
