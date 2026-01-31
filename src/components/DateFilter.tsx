@@ -1,17 +1,17 @@
 'use client';
 
-export type DateRange = 'today' | 'week' | 'twoweeks' | 'month' | 'all';
+export type DateRange = 'today' | 'tomorrow' | 'week' | 'nextweek' | 'all';
 
 interface DateFilterProps {
-  selected: DateRange;
+  selected: DateRange | null;
   onChange: (range: DateRange) => void;
 }
 
 const ranges: { value: DateRange; label: string }[] = [
   { value: 'today', label: 'Today' },
+  { value: 'tomorrow', label: 'Tomorrow' },
   { value: 'week', label: 'This Week' },
-  { value: 'twoweeks', label: '2 Weeks' },
-  { value: 'month', label: 'This Month' },
+  { value: 'nextweek', label: 'Next Week' },
   { value: 'all', label: 'All' },
 ];
 

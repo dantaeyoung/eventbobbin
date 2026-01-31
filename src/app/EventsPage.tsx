@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { format, startOfDay, endOfDay, endOfWeek, endOfMonth, addDays } from 'date-fns';
+import { format, startOfDay, endOfDay, endOfWeek, addDays, startOfWeek } from 'date-fns';
 import { Event, Source } from '@/lib/types';
 import { EventList } from '@/components/EventList';
 import { SourceFilter } from '@/components/SourceFilter';
@@ -15,7 +15,7 @@ interface EventsPageProps {
   initialSources: Source[];
 }
 
-function getDateRange(range: DateRange): { from: string; to: string } | null {
+function getDateRange(range: DateRange): { from: string; to: string } {
   const now = new Date();
   switch (range) {
     case 'today':
@@ -23,20 +23,23 @@ function getDateRange(range: DateRange): { from: string; to: string } | null {
         from: format(startOfDay(now), "yyyy-MM-dd'T'HH:mm:ss"),
         to: format(endOfDay(now), "yyyy-MM-dd'T'HH:mm:ss"),
       };
+    case 'tomorrow':
+      const tomorrow = addDays(now, 1);
+      return {
+        from: format(startOfDay(tomorrow), "yyyy-MM-dd'T'HH:mm:ss"),
+        to: format(endOfDay(tomorrow), "yyyy-MM-dd'T'HH:mm:ss"),
+      };
     case 'week':
       return {
         from: format(startOfDay(now), "yyyy-MM-dd'T'HH:mm:ss"),
         to: format(endOfWeek(now), "yyyy-MM-dd'T'HH:mm:ss"),
       };
-    case 'twoweeks':
+    case 'nextweek':
+      const nextWeekStart = startOfWeek(addDays(now, 7));
+      const nextWeekEnd = endOfWeek(nextWeekStart);
       return {
-        from: format(startOfDay(now), "yyyy-MM-dd'T'HH:mm:ss"),
-        to: format(endOfDay(addDays(now, 14)), "yyyy-MM-dd'T'HH:mm:ss"),
-      };
-    case 'month':
-      return {
-        from: format(startOfDay(now), "yyyy-MM-dd'T'HH:mm:ss"),
-        to: format(endOfMonth(now), "yyyy-MM-dd'T'HH:mm:ss"),
+        from: format(startOfDay(nextWeekStart), "yyyy-MM-dd'T'HH:mm:ss"),
+        to: format(endOfDay(nextWeekEnd), "yyyy-MM-dd'T'HH:mm:ss"),
       };
     case 'all':
       return {
@@ -47,12 +50,12 @@ function getDateRange(range: DateRange): { from: string; to: string } | null {
 }
 
 function loadDateRange(): DateRange {
-  if (typeof window === 'undefined') return 'month';
+  if (typeof window === 'undefined') return 'week';
   const stored = localStorage.getItem(DATE_RANGE_KEY);
-  if (stored && ['today', 'week', 'twoweeks', 'month', 'all'].includes(stored)) {
+  if (stored && ['today', 'tomorrow', 'week', 'nextweek', 'all'].includes(stored)) {
     return stored as DateRange;
   }
-  return 'month';
+  return 'week';
 }
 
 export function EventsPage({ initialEvents, initialSources }: EventsPageProps) {
@@ -60,7 +63,7 @@ export function EventsPage({ initialEvents, initialSources }: EventsPageProps) {
   const [allEvents, setAllEvents] = useState<Event[]>(initialEvents);
   const [sources] = useState<Source[]>(initialSources);
   const [selectedSources, setSelectedSources] = useState<string[]>([]);
-  const [dateRange, setDateRange] = useState<DateRange>('month');
+  const [dateRange, setDateRange] = useState<DateRange | null>('week');
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [mounted, setMounted] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -90,7 +93,7 @@ export function EventsPage({ initialEvents, initialSources }: EventsPageProps) {
 
   // Save date range to localStorage when it changes
   useEffect(() => {
-    if (mounted) {
+    if (mounted && dateRange) {
       localStorage.setItem(DATE_RANGE_KEY, dateRange);
     }
   }, [dateRange, mounted]);
@@ -102,6 +105,9 @@ export function EventsPage({ initialEvents, initialSources }: EventsPageProps) {
 
   const handleCalendarSelect = (date: Date | null) => {
     setSelectedDate(date);
+    if (date) {
+      setDateRange(null); // Deselect date range buttons when calendar date selected
+    }
   };
 
   const fetchEvents = useCallback(async () => {
@@ -116,13 +122,14 @@ export function EventsPage({ initialEvents, initialSources }: EventsPageProps) {
         // Calendar date selected - show just that day
         params.set('from', format(startOfDay(selectedDate), "yyyy-MM-dd'T'HH:mm:ss"));
         params.set('to', format(endOfDay(selectedDate), "yyyy-MM-dd'T'HH:mm:ss"));
-      } else {
+      } else if (dateRange) {
         // Use date range filter
         const range = getDateRange(dateRange);
-        if (range) {
-          if (range.from) params.set('from', range.from);
-          if (range.to) params.set('to', range.to);
-        }
+        if (range.from) params.set('from', range.from);
+        if (range.to) params.set('to', range.to);
+      } else {
+        // No filter - show from today onwards
+        params.set('from', format(startOfDay(new Date()), "yyyy-MM-dd'T'HH:mm:ss"));
       }
 
       const res = await fetch(`/api/events?${params}`);
@@ -178,7 +185,7 @@ export function EventsPage({ initialEvents, initialSources }: EventsPageProps) {
             <div className="space-y-4 mb-6">
               <div className="flex items-center justify-between">
                 <DateFilter
-                  selected={selectedDate ? 'today' : dateRange}
+                  selected={dateRange}
                   onChange={handleDateRangeChange}
                 />
                 {loading && (
