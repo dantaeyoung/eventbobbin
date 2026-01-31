@@ -45,6 +45,7 @@ export async function scrapeSource(source: Source): Promise<{
         location: event.location || null,
         description: event.description || null,
         url: event.url || null,
+        imageUrl: event.imageUrl || null,
         rawData: JSON.stringify(event),
         scrapedAt,
       });

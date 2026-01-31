@@ -35,6 +35,7 @@ Respond with a JSON array of events. Each event should have:
 - location (string, optional): Venue name and/or address
 - description (string, optional): Brief description if available
 - url (string, optional): Direct link to event details
+- imageUrl (string, optional): Event image/poster URL if clearly associated with this event. Only include if obvious - skip if uncertain. Ignore logos, icons, and generic site images.
 
 Example response:
 [
@@ -44,7 +45,8 @@ Example response:
     "endDate": "2026-02-15T21:00:00",
     "location": "123 Main St, New York",
     "description": "Learn contemporary dance techniques",
-    "url": "https://example.com/events/dance-workshop"
+    "url": "https://example.com/events/dance-workshop",
+    "imageUrl": "https://example.com/images/dance-workshop.jpg"
   }
 ]
 

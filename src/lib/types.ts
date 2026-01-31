@@ -18,6 +18,7 @@ export interface Event {
   location: string | null;
   description: string | null;
   url: string | null;
+  imageUrl: string | null;
   rawData: string;
   createdAt: string;
   updatedAt: string;
@@ -31,4 +32,5 @@ export interface ExtractedEvent {
   location?: string | null;
   description?: string | null;
   url?: string | null;
+  imageUrl?: string | null;
 }

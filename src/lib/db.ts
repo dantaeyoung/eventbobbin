@@ -30,6 +30,7 @@ db.exec(`
     location TEXT,
     description TEXT,
     url TEXT,
+    imageUrl TEXT,
     rawData TEXT NOT NULL,
     createdAt TEXT NOT NULL DEFAULT (datetime('now')),
     updatedAt TEXT NOT NULL DEFAULT (datetime('now')),
@@ -41,6 +42,13 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_events_startDate ON events(startDate);
   CREATE INDEX IF NOT EXISTS idx_events_sourceId ON events(sourceId);
 `);
+
+// Migration: Add imageUrl column if it doesn't exist
+try {
+  db.exec(`ALTER TABLE events ADD COLUMN imageUrl TEXT`);
+} catch {
+  // Column already exists, ignore
+}
 
 // Source queries
 export function getAllSources(): Source[] {
@@ -153,13 +161,14 @@ export function getEvents(options: {
 
 export function upsertEvent(event: Omit<Event, 'createdAt' | 'updatedAt'>): void {
   const stmt = db.prepare(`
-    INSERT INTO events (id, sourceId, title, startDate, endDate, location, description, url, rawData, scrapedAt)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO events (id, sourceId, title, startDate, endDate, location, description, url, imageUrl, rawData, scrapedAt)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ON CONFLICT(sourceId, title, startDate) DO UPDATE SET
       endDate = excluded.endDate,
       location = excluded.location,
       description = excluded.description,
       url = excluded.url,
+      imageUrl = excluded.imageUrl,
       rawData = excluded.rawData,
       updatedAt = datetime('now'),
       scrapedAt = excluded.scrapedAt
@@ -173,6 +182,7 @@ export function upsertEvent(event: Omit<Event, 'createdAt' | 'updatedAt'>): void
     event.location,
     event.description,
     event.url,
+    event.imageUrl,
     event.rawData,
     event.scrapedAt
   );
