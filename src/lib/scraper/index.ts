@@ -34,7 +34,7 @@ export async function scrapeSource(
     }
 
     // Extract events via LLM
-    const events = await extractEvents(text, links, source.scrapeInstructions);
+    const events = await extractEvents(text, links, source.scrapeInstructions, source.id);
     console.log(`  Extracted ${events.length} events`);
 
     // Upsert events

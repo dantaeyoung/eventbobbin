@@ -1,21 +1,29 @@
 import OpenAI from 'openai';
 import { ExtractedEvent } from '../types';
 import { buildExtractionPrompt } from './prompt';
+import { recordLLMUsage } from '../db';
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
+// GPT-4o-mini pricing (as of 2024): $0.15 per 1M input tokens, $0.60 per 1M output tokens
+const PRICING = {
+  'gpt-4o-mini': { input: 0.15 / 1_000_000, output: 0.60 / 1_000_000 },
+};
+
 export async function extractEvents(
   pageText: string,
   links: { text: string; href: string }[],
-  scrapeInstructions?: string | null
+  scrapeInstructions?: string | null,
+  sourceId?: string
 ): Promise<ExtractedEvent[]> {
   const currentDate = new Date().toISOString().split('T')[0];
   const prompt = buildExtractionPrompt(pageText, links, currentDate, scrapeInstructions);
+  const model = 'gpt-4o-mini';
 
   const response = await openai.chat.completions.create({
-    model: 'gpt-4o-mini',
+    model,
     messages: [
       {
         role: 'user',
@@ -25,6 +33,21 @@ export async function extractEvents(
     temperature: 0,
     max_tokens: 4000,
   });
+
+  // Track usage
+  const usage = response.usage;
+  if (usage) {
+    const pricing = PRICING[model as keyof typeof PRICING] || { input: 0, output: 0 };
+    const cost = (usage.prompt_tokens * pricing.input) + (usage.completion_tokens * pricing.output);
+    recordLLMUsage({
+      sourceId: sourceId || null,
+      model,
+      promptTokens: usage.prompt_tokens,
+      completionTokens: usage.completion_tokens,
+      totalTokens: usage.total_tokens,
+      cost,
+    });
+  }
 
   const content = response.choices[0]?.message?.content || '[]';
 

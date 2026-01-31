@@ -83,6 +83,21 @@ db.exec(`
   );
 `);
 
+// Stats table for tracking LLM usage
+db.exec(`
+  CREATE TABLE IF NOT EXISTS llm_usage (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    sourceId TEXT,
+    model TEXT NOT NULL,
+    promptTokens INTEGER NOT NULL,
+    completionTokens INTEGER NOT NULL,
+    totalTokens INTEGER NOT NULL,
+    cost REAL NOT NULL,
+    createdAt TEXT NOT NULL DEFAULT (datetime('now')),
+    FOREIGN KEY (sourceId) REFERENCES sources(id) ON DELETE SET NULL
+  );
+`);
+
 // Settings queries
 export function getSetting(key: string): string | null {
   const row = db.prepare('SELECT value FROM settings WHERE key = ?').get(key) as { value: string } | undefined;
@@ -253,6 +268,81 @@ export function upsertEvent(event: Omit<Event, 'createdAt' | 'updatedAt'>): void
 export function deleteEventsBySource(sourceId: string): number {
   const result = db.prepare('DELETE FROM events WHERE sourceId = ?').run(sourceId);
   return result.changes;
+}
+
+// LLM usage tracking
+export interface LLMUsage {
+  id: number;
+  sourceId: string | null;
+  model: string;
+  promptTokens: number;
+  completionTokens: number;
+  totalTokens: number;
+  cost: number;
+  createdAt: string;
+}
+
+export function recordLLMUsage(usage: Omit<LLMUsage, 'id' | 'createdAt'>): void {
+  db.prepare(`
+    INSERT INTO llm_usage (sourceId, model, promptTokens, completionTokens, totalTokens, cost)
+    VALUES (?, ?, ?, ?, ?, ?)
+  `).run(
+    usage.sourceId,
+    usage.model,
+    usage.promptTokens,
+    usage.completionTokens,
+    usage.totalTokens,
+    usage.cost
+  );
+}
+
+export function getLLMStats(): {
+  totalCalls: number;
+  totalPromptTokens: number;
+  totalCompletionTokens: number;
+  totalTokens: number;
+  totalCost: number;
+  recentUsage: LLMUsage[];
+} {
+  const totals = db.prepare(`
+    SELECT
+      COUNT(*) as totalCalls,
+      COALESCE(SUM(promptTokens), 0) as totalPromptTokens,
+      COALESCE(SUM(completionTokens), 0) as totalCompletionTokens,
+      COALESCE(SUM(totalTokens), 0) as totalTokens,
+      COALESCE(SUM(cost), 0) as totalCost
+    FROM llm_usage
+  `).get() as {
+    totalCalls: number;
+    totalPromptTokens: number;
+    totalCompletionTokens: number;
+    totalTokens: number;
+    totalCost: number;
+  };
+
+  const recentUsage = db.prepare(`
+    SELECT * FROM llm_usage ORDER BY createdAt DESC LIMIT 20
+  `).all() as LLMUsage[];
+
+  return { ...totals, recentUsage };
+}
+
+export function getEventStats(): {
+  totalEvents: number;
+  totalSources: number;
+  enabledSources: number;
+  eventsThisMonth: number;
+} {
+  const totalEvents = (db.prepare('SELECT COUNT(*) as count FROM events').get() as { count: number }).count;
+  const totalSources = (db.prepare('SELECT COUNT(*) as count FROM sources').get() as { count: number }).count;
+  const enabledSources = (db.prepare('SELECT COUNT(*) as count FROM sources WHERE enabled = 1').get() as { count: number }).count;
+
+  const startOfMonth = new Date();
+  startOfMonth.setDate(1);
+  startOfMonth.setHours(0, 0, 0, 0);
+  const eventsThisMonth = (db.prepare('SELECT COUNT(*) as count FROM events WHERE startDate >= ?').get(startOfMonth.toISOString()) as { count: number }).count;
+
+  return { totalEvents, totalSources, enabledSources, eventsThisMonth };
 }
 
 export { db };

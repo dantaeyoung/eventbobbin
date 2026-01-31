@@ -200,7 +200,10 @@ export function SquigglesPage({ initialSources }: SquigglesPageProps) {
                 ← Back to Events
               </a>
               <a href="/sources" className="text-sm text-gray-600 hover:text-gray-900">
-                Manage Sources
+                Sources
+              </a>
+              <a href="/stats" className="text-sm text-gray-600 hover:text-gray-900">
+                Stats
               </a>
             </div>
           </div>

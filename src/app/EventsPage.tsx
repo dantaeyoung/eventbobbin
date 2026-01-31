@@ -221,13 +221,19 @@ export function EventsPage({ initialEvents, initialSources }: EventsPageProps) {
                 href="/squiggles"
                 className="text-sm text-gray-600 hover:text-gray-900"
               >
-                Manage Squiggles
+                Squiggles
               </a>
               <a
                 href="/sources"
                 className="text-sm text-gray-600 hover:text-gray-900"
               >
-                Manage Sources
+                Sources
+              </a>
+              <a
+                href="/stats"
+                className="text-sm text-gray-600 hover:text-gray-900"
+              >
+                Stats
               </a>
             </div>
           </div>

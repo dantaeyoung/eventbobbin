@@ -198,7 +198,10 @@ export function SourcesPage({ initialSources }: SourcesPageProps) {
                 ← Back to Events
               </a>
               <a href="/squiggles" className="text-sm text-gray-600 hover:text-gray-900">
-                Manage Squiggles
+                Squiggles
+              </a>
+              <a href="/stats" className="text-sm text-gray-600 hover:text-gray-900">
+                Stats
               </a>
             </div>
           </div>
