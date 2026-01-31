@@ -28,6 +28,7 @@ export async function POST(request: NextRequest) {
       scrapeIntervalHours: body.scrapeIntervalHours || 24,
       scrapeInstructions: body.scrapeInstructions || null,
       scrapingStartedAt: null,
+      tags: body.tags || null,
     });
     return NextResponse.json(source, { status: 201 });
   } catch (error) {

@@ -7,6 +7,7 @@ import { EventList } from '@/components/EventList';
 import { SourceFilter } from '@/components/SourceFilter';
 import { DateFilter, DateRange } from '@/components/DateFilter';
 import { Calendar } from '@/components/Calendar';
+import { TagFilter } from '@/components/TagFilter';
 
 const DATE_RANGE_KEY = 'eventbobbin-daterange';
 
@@ -63,6 +64,7 @@ export function EventsPage({ initialEvents, initialSources }: EventsPageProps) {
   const [allEvents, setAllEvents] = useState<Event[]>(initialEvents);
   const [sources] = useState<Source[]>(initialSources);
   const [selectedSources, setSelectedSources] = useState<string[]>([]);
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [dateRange, setDateRange] = useState<DateRange | null>('week');
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [mounted, setMounted] = useState(false);
@@ -70,17 +72,40 @@ export function EventsPage({ initialEvents, initialSources }: EventsPageProps) {
   const [showHelp, setShowHelp] = useState(false);
   const [eventToDelete, setEventToDelete] = useState<Event | null>(null);
 
-  // Compute event dates for calendar dots (filtered by selected sources)
+  // Get source IDs that match selected tags
+  const sourceIdsWithSelectedTags = useMemo(() => {
+    if (selectedTags.length === 0) return null;
+    return sources
+      .filter((source) => {
+        if (!source.tags) return false;
+        const sourceTags = source.tags.split(',').map((t) => t.trim().toLowerCase());
+        return selectedTags.some((tag) => sourceTags.includes(tag));
+      })
+      .map((s) => s.id);
+  }, [sources, selectedTags]);
+
+  // Effective source filter (combines manual source selection with tag selection)
+  const effectiveSourceIds = useMemo(() => {
+    if (selectedSources.length > 0 && sourceIdsWithSelectedTags) {
+      // Intersection of both filters
+      return selectedSources.filter((id) => sourceIdsWithSelectedTags.includes(id));
+    }
+    if (selectedSources.length > 0) return selectedSources;
+    if (sourceIdsWithSelectedTags) return sourceIdsWithSelectedTags;
+    return null;
+  }, [selectedSources, sourceIdsWithSelectedTags]);
+
+  // Compute event dates for calendar dots (filtered by effective sources)
   const eventDates = useMemo(() => {
     const dates = new Set<string>();
-    const filtered = selectedSources.length > 0
-      ? allEvents.filter((e) => selectedSources.includes(e.sourceId))
+    const filtered = effectiveSourceIds
+      ? allEvents.filter((e) => effectiveSourceIds.includes(e.sourceId))
       : allEvents;
     filtered.forEach((e) => {
       dates.add(e.startDate.split('T')[0]);
     });
     return dates;
-  }, [allEvents, selectedSources]);
+  }, [allEvents, effectiveSourceIds]);
 
   // Load date range from localStorage on mount
   useEffect(() => {
@@ -115,8 +140,13 @@ export function EventsPage({ initialEvents, initialSources }: EventsPageProps) {
     setLoading(true);
     try {
       const params = new URLSearchParams();
-      if (selectedSources.length > 0) {
-        params.set('sources', selectedSources.join(','));
+      if (effectiveSourceIds && effectiveSourceIds.length > 0) {
+        params.set('sources', effectiveSourceIds.join(','));
+      } else if (effectiveSourceIds && effectiveSourceIds.length === 0) {
+        // No sources match the filters, don't fetch
+        setEvents([]);
+        setLoading(false);
+        return;
       }
 
       if (selectedDate) {
@@ -139,7 +169,7 @@ export function EventsPage({ initialEvents, initialSources }: EventsPageProps) {
     } finally {
       setLoading(false);
     }
-  }, [selectedSources, dateRange, selectedDate]);
+  }, [effectiveSourceIds, dateRange, selectedDate]);
 
   useEffect(() => {
     fetchEvents();
@@ -215,6 +245,11 @@ export function EventsPage({ initialEvents, initialSources }: EventsPageProps) {
                   Showing events for {format(selectedDate, 'EEEE, MMMM d, yyyy')}
                 </div>
               )}
+              <TagFilter
+                sources={sources}
+                selected={selectedTags}
+                onChange={setSelectedTags}
+              />
               <SourceFilter
                 sources={sources}
                 selected={selectedSources}

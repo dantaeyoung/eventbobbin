@@ -8,6 +8,7 @@ export interface Source {
   scrapeIntervalHours: number;
   scrapeInstructions: string | null; // e.g., "Only extract NYC events"
   scrapingStartedAt: string | null; // null = not scraping, timestamp = in progress
+  tags: string | null; // comma-separated, e.g., "museum,art,movement"
   createdAt: string;
 }
 

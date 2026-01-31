@@ -21,9 +21,11 @@ export function SourcesPage({ initialSources }: SourcesPageProps) {
   const [name, setName] = useState('');
   const [url, setUrl] = useState('');
   const [instructions, setInstructions] = useState('');
+  const [tags, setTags] = useState('');
   const [adding, setAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [editInstructions, setEditInstructions] = useState('');
+  const [editField, setEditField] = useState<'instructions' | 'tags'>('instructions');
+  const [editValue, setEditValue] = useState('');
   const [, setTick] = useState(0); // Force re-render for timer
   const { toasts, addToast, removeToast } = useToasts();
 
@@ -53,7 +55,12 @@ export function SourcesPage({ initialSources }: SourcesPageProps) {
       const res = await fetch('/api/sources', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, url, scrapeInstructions: instructions || null }),
+        body: JSON.stringify({
+          name,
+          url,
+          scrapeInstructions: instructions || null,
+          tags: tags || null,
+        }),
       });
       if (res.ok) {
         const source = await res.json();
@@ -61,22 +68,27 @@ export function SourcesPage({ initialSources }: SourcesPageProps) {
         setName('');
         setUrl('');
         setInstructions('');
+        setTags('');
       }
     } finally {
       setAdding(false);
     }
   };
 
-  const handleEditInstructions = (source: Source) => {
+  const handleEdit = (source: Source, field: 'instructions' | 'tags') => {
     setEditingId(source.id);
-    setEditInstructions(source.scrapeInstructions || '');
+    setEditField(field);
+    setEditValue(field === 'instructions' ? source.scrapeInstructions || '' : source.tags || '');
   };
 
-  const handleSaveInstructions = async (id: string) => {
+  const handleSaveEdit = async (id: string) => {
+    const body = editField === 'instructions'
+      ? { scrapeInstructions: editValue || null }
+      : { tags: editValue || null };
     const res = await fetch(`/api/sources/${id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ scrapeInstructions: editInstructions || null }),
+      body: JSON.stringify(body),
     });
     if (res.ok) {
       const updated = await res.json();
@@ -168,7 +180,14 @@ export function SourcesPage({ initialSources }: SourcesPageProps) {
             <div className="flex gap-3">
               <input
                 type="text"
-                placeholder="Filter instructions (optional) e.g., 'Only NYC events'"
+                placeholder="Tags (optional) e.g., 'museum, movement, art'"
+                value={tags}
+                onChange={(e) => setTags(e.target.value)}
+                className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-900 text-sm"
+              />
+              <input
+                type="text"
+                placeholder="Filter instructions (optional)"
                 value={instructions}
                 onChange={(e) => setInstructions(e.target.value)}
                 className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-900 text-sm"
@@ -208,18 +227,41 @@ export function SourcesPage({ initialSources }: SourcesPageProps) {
                       ? `Last scraped: ${format(new Date(source.lastScrapedAt), 'MMM d, h:mm a')}`
                       : 'Never scraped'}
                   </div>
+                  {/* Tags display */}
+                  {source.tags && editingId !== source.id && (
+                    <div className="flex flex-wrap gap-1 mt-2">
+                      {source.tags.split(',').map((tag, i) => (
+                        <span
+                          key={i}
+                          onClick={() => handleEdit(source, 'tags')}
+                          className="px-2 py-0.5 text-xs bg-blue-100 text-blue-700 rounded-full cursor-pointer hover:bg-blue-200"
+                        >
+                          {tag.trim()}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  {!source.tags && editingId !== source.id && (
+                    <button
+                      onClick={() => handleEdit(source, 'tags')}
+                      className="text-sm text-gray-400 mt-1 hover:text-gray-600"
+                    >
+                      + Add tags
+                    </button>
+                  )}
+                  {/* Edit form */}
                   {editingId === source.id ? (
                     <div className="flex gap-2 mt-2">
                       <input
                         type="text"
-                        value={editInstructions}
-                        onChange={(e) => setEditInstructions(e.target.value)}
-                        placeholder="Filter instructions (e.g., 'Only NYC events')"
+                        value={editValue}
+                        onChange={(e) => setEditValue(e.target.value)}
+                        placeholder={editField === 'tags' ? "Tags (comma-separated)" : "Filter instructions"}
                         className="flex-1 px-2 py-1 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-900"
                         autoFocus
                       />
                       <button
-                        onClick={() => handleSaveInstructions(source.id)}
+                        onClick={() => handleSaveEdit(source.id)}
                         className="px-2 py-1 text-sm bg-gray-900 text-white rounded-md hover:bg-gray-800"
                       >
                         Save
@@ -233,7 +275,7 @@ export function SourcesPage({ initialSources }: SourcesPageProps) {
                     </div>
                   ) : source.scrapeInstructions ? (
                     <div
-                      onClick={() => handleEditInstructions(source)}
+                      onClick={() => handleEdit(source, 'instructions')}
                       className="text-sm text-purple-600 mt-1 cursor-pointer hover:text-purple-800"
                       title="Click to edit"
                     >
@@ -241,10 +283,10 @@ export function SourcesPage({ initialSources }: SourcesPageProps) {
                     </div>
                   ) : (
                     <button
-                      onClick={() => handleEditInstructions(source)}
-                      className="text-sm text-gray-400 mt-1 hover:text-gray-600"
+                      onClick={() => handleEdit(source, 'instructions')}
+                      className="text-sm text-gray-400 hover:text-gray-600"
                     >
-                      + Add filter instructions
+                      + Add filter
                     </button>
                   )}
                 </div>
