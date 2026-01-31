@@ -5,7 +5,7 @@ import { Source } from '@/lib/types';
 import { format } from 'date-fns';
 
 const STORAGE_KEY = 'eventbobbin-scraping';
-const STALE_THRESHOLD_MS = 5 * 60 * 1000; // 5 minutes
+const STALE_THRESHOLD_MS = 10 * 60 * 1000; // 10 minutes
 
 interface ScrapingState {
   [sourceId: string]: number; // timestamp when scrape started
