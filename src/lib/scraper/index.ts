@@ -8,20 +8,24 @@ import { Source } from '../types';
 import { renderPage, closeBrowser } from './browser';
 import { extractEvents } from './extract';
 
-export async function scrapeSource(source: Source): Promise<{
+export async function scrapeSource(
+  source: Source,
+  options?: { force?: boolean }
+): Promise<{
   success: boolean;
   eventsFound: number;
   skipped: boolean;
   error?: string;
 }> {
-  console.log(`Scraping: ${source.name} (${source.url})`);
+  const force = options?.force ?? false;
+  console.log(`Scraping: ${source.name} (${source.url})${force ? ' [FORCE]' : ''}`);
 
   try {
     // Render the page
     const { text, links, hash } = await renderPage(source.url);
 
-    // Check if content changed
-    if (hash === source.lastContentHash) {
+    // Check if content changed (skip if force)
+    if (!force && hash === source.lastContentHash) {
       console.log(`  No changes detected, skipping LLM extraction`);
       await updateSource(source.id, {
         lastScrapedAt: new Date().toISOString(),

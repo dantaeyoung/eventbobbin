@@ -13,6 +13,7 @@ export async function POST(
     return NextResponse.json({ error: 'Source not found' }, { status: 404 });
   }
 
-  const result = await scrapeSource(source);
+  const force = request.nextUrl.searchParams.get('force') === 'true';
+  const result = await scrapeSource(source, { force });
   return NextResponse.json(result);
 }

@@ -114,10 +114,11 @@ export function SourcesPage({ initialSources }: SourcesPageProps) {
     }
   };
 
-  const handleScrape = async (id: string) => {
+  const handleScrape = async (id: string, force: boolean = false) => {
     setScraping((prev) => new Set(prev).add(id));
     try {
-      const res = await fetch(`/api/sources/${id}/scrape`, { method: 'POST' });
+      const url = `/api/sources/${id}/scrape${force ? '?force=true' : ''}`;
+      const res = await fetch(url, { method: 'POST' });
       const result = await res.json();
       alert(
         result.success
@@ -204,8 +205,9 @@ export function SourcesPage({ initialSources }: SourcesPageProps) {
                 </div>
                 <div className="flex items-center gap-2 ml-4">
                   <button
-                    onClick={() => handleScrape(source.id)}
+                    onClick={(e) => handleScrape(source.id, e.shiftKey)}
                     disabled={scraping.has(source.id)}
+                    title="Hold Shift to force re-scrape (ignore cache)"
                     className="px-3 py-1.5 text-sm bg-gray-100 rounded-md hover:bg-gray-200 disabled:opacity-50"
                   >
                     {scraping.has(source.id) ? 'Scraping...' : 'Scrape Now'}
