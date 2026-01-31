@@ -33,7 +33,13 @@ export async function apiFetch<T>(
     throw new Error(`API error: ${res.status} ${res.statusText}`);
   }
 
-  return res.json();
+  // Check if response is actually JSON before parsing
+  const text = await res.text();
+  if (!text || (!text.startsWith('{') && !text.startsWith('['))) {
+    throw new Error(`API returned non-JSON response: ${text.slice(0, 100)}`);
+  }
+
+  return JSON.parse(text);
 }
 
 // Typed API methods

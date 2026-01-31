@@ -22,8 +22,12 @@ export async function fetchSquiggleSettings(): Promise<SquiggleSettings> {
     const baseUrl = getApiUrl();
     const res = await fetch(`${baseUrl}/api/settings/${SETTINGS_KEY}`);
     if (res.ok) {
-      const data = await res.json();
-      return data.value || {};
+      const text = await res.text();
+      // Check if response is JSON before parsing
+      if (text.startsWith('{') || text.startsWith('[')) {
+        const data = JSON.parse(text);
+        return data.value || {};
+      }
     }
   } catch {
     // Fall back to localStorage if API unavailable
