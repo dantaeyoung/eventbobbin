@@ -135,6 +135,11 @@ export function SourcesPage({ initialSources }: SourcesPageProps) {
   };
 
   const handleScrape = async (id: string, force: boolean = false) => {
+    // Optimistically show "Scraping..." immediately
+    setSources(sources.map((s) =>
+      s.id === id ? { ...s, scrapingStartedAt: new Date().toISOString() } : s
+    ));
+
     const scrapeUrl = `/api/sources/${id}/scrape${force ? '?force=true' : ''}`;
     const res = await fetch(scrapeUrl, { method: 'POST' });
     const result = await res.json();
