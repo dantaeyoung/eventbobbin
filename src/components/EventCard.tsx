@@ -17,7 +17,6 @@ interface EventCardProps {
 }
 
 function formatDateForGoogle(date: string): string {
-  // Convert to format: 20260201T190000
   return date.replace(/[-:]/g, '').split('.')[0];
 }
 
@@ -33,13 +32,11 @@ function generateGoogleCalendarUrl(event: Event): string {
   return `https://calendar.google.com/calendar/render?${params}`;
 }
 
-// Generate a seeded random number
 function seededRandom(seed: number): number {
   const x = Math.sin(seed) * 10000;
   return x - Math.floor(x);
 }
 
-// Generate wiggly path for the border using smooth curves
 function generateWigglyPath(
   width: number,
   height: number,
@@ -48,14 +45,12 @@ function generateWigglyPath(
 ): string {
   const { wiggleAmount, segmentLength, tension, chaos } = positionToSquiggleParams(squigglePosition);
 
-  // If very ordered and rigid (bottom-left), return a simple rounded rectangle
   if (squigglePosition.x < 0.1 && squigglePosition.y < 0.1) {
     const r = 8;
     const m = 8;
     return `M ${m + r} ${m} L ${width - m - r} ${m} Q ${width - m} ${m} ${width - m} ${m + r} L ${width - m} ${height - m - r} Q ${width - m} ${height - m} ${width - m - r} ${height - m} L ${m + r} ${height - m} Q ${m} ${height - m} ${m} ${height - m - r} L ${m} ${m + r} Q ${m} ${m} ${m + r} ${m} Z`;
   }
 
-  // Create a numeric seed from the string
   let numericSeed = 0;
   for (let i = 0; i < seed.length; i++) {
     numericSeed += seed.charCodeAt(i);
@@ -63,7 +58,6 @@ function generateWigglyPath(
 
   let seedCounter = numericSeed;
 
-  // Wiggle function that incorporates chaos for irregularity
   const wiggle = () => {
     seedCounter++;
     const baseWiggle = (seededRandom(seedCounter) - 0.5) * wiggleAmount * 2;
@@ -71,37 +65,30 @@ function generateWigglyPath(
     return baseWiggle * chaosMultiplier;
   };
 
-  // Generate all points around the rectangle
   const allPoints: { x: number; y: number }[] = [];
   const margin = 8;
 
-  // Chaos also affects segment spacing
   const getSegmentStep = () => {
     if (chaos < 0.2) return segmentLength;
     const variation = (seededRandom(seedCounter++) - 0.5) * chaos * segmentLength * 0.6;
     return Math.max(8, segmentLength + variation);
   };
 
-  // Top edge (left to right)
   for (let x = margin; x < width - margin; x += getSegmentStep()) {
     allPoints.push({ x: x + wiggle(), y: margin + wiggle() });
   }
-  // Right edge (top to bottom)
   for (let y = margin; y < height - margin; y += getSegmentStep()) {
     allPoints.push({ x: width - margin + wiggle(), y: y + wiggle() });
   }
-  // Bottom edge (right to left)
   for (let x = width - margin; x > margin; x -= getSegmentStep()) {
     allPoints.push({ x: x + wiggle(), y: height - margin + wiggle() });
   }
-  // Left edge (bottom to top)
   for (let y = height - margin; y > margin; y -= getSegmentStep()) {
     allPoints.push({ x: margin + wiggle(), y: y + wiggle() });
   }
 
   if (allPoints.length < 3) return '';
 
-  // Create smooth curve using Catmull-Rom to Bezier conversion
   const pathParts: string[] = [];
   pathParts.push(`M ${allPoints[0].x} ${allPoints[0].y}`);
 
@@ -127,16 +114,13 @@ export function EventCard({ event, source, onDelete }: EventCardProps) {
   const [squigglePosition, setSquigglePosition] = useState<TagSquigglePosition>({ x: 0, y: 0 });
 
   const startDate = new Date(event.startDate);
-  const dateStr = format(startDate, 'EEE, MMM d');
-  const timeStr = event.startDate.includes('T00:00:00')
-    ? null
-    : format(startDate, 'h:mm a');
+  const hasTime = !event.startDate.includes('T00:00:00');
+  const timeStr = hasTime ? format(startDate, 'h:mma').toLowerCase() : null;
 
   const tags = source?.tags
     ? source.tags.split(',').map((t) => t.trim().toLowerCase()).filter(Boolean)
     : [];
 
-  // Load squiggle settings on mount
   useEffect(() => {
     if (tags.length > 0) {
       const pos = getAverageSquigglePosition(tags);
@@ -144,13 +128,12 @@ export function EventCard({ event, source, onDelete }: EventCardProps) {
     }
   }, [source?.tags]);
 
-  // Use event ID as seed for consistent wiggly border
-  const wigglyPath = generateWigglyPath(340, 130, event.id, squigglePosition);
+  const wigglyPath = generateWigglyPath(380, 130, event.id, squigglePosition);
 
   return (
     <div className="group relative">
       {/* Hover actions */}
-      <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+      <div className="absolute top-2 left-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-10">
         <a
           href={generateGoogleCalendarUrl(event)}
           target="_blank"
@@ -191,17 +174,11 @@ export function EventCard({ event, source, onDelete }: EventCardProps) {
         className="block"
       >
         <div className="flex items-center gap-2">
-          {/* Date/Time - far left */}
-          <div className="w-[70px] flex-shrink-0 text-right text-[#2e32ff] text-[12px] font-bold whitespace-nowrap">
-            <div>{dateStr}</div>
-            {timeStr && <div>{timeStr}</div>}
-          </div>
-
           {/* Source name - vertical, rotated */}
           {source && (
-            <div className="flex-shrink-0 flex items-center justify-center w-[20px] h-[90px]">
+            <div className="flex-shrink-0 flex items-center justify-center w-[24px] h-[100px]">
               <span
-                className="font-bold text-[#2e32ff] text-[16px] whitespace-nowrap"
+                className="font-bold text-[#2e32ff] text-[14px] whitespace-nowrap"
                 style={{
                   writingMode: 'vertical-rl',
                   transform: 'rotate(180deg)',
@@ -212,13 +189,13 @@ export function EventCard({ event, source, onDelete }: EventCardProps) {
             </div>
           )}
 
-          {/* Squiggle box with content - fixed width */}
-          <div className="relative w-[340px] min-h-[130px] bg-white flex-shrink-0">
+          {/* Squiggle box with content */}
+          <div className="relative w-[380px] min-h-[130px] bg-white flex-shrink-0">
             {/* Wiggly border SVG */}
             <svg
               className="absolute inset-0 w-full h-full pointer-events-none"
               preserveAspectRatio="none"
-              viewBox="0 0 340 130"
+              viewBox="0 0 380 130"
             >
               <path
                 d={wigglyPath}
@@ -230,9 +207,19 @@ export function EventCard({ event, source, onDelete }: EventCardProps) {
               />
             </svg>
 
+            {/* Time badge - upper right, rotated */}
+            {timeStr && (
+              <div
+                className="absolute -top-2 -right-2 bg-[#2e32ff] text-white text-[12px] font-bold px-2 py-1 rounded-md z-10"
+                style={{ transform: 'rotate(15deg)' }}
+              >
+                {timeStr}
+              </div>
+            )}
+
             <div className="relative p-5">
               {/* Event title */}
-              <h3 className="font-bold text-black text-[14px] mb-2">
+              <h3 className="font-bold text-black text-[14px] mb-2 pr-12">
                 {event.title}
               </h3>
 
@@ -250,34 +237,29 @@ export function EventCard({ event, source, onDelete }: EventCardProps) {
                 </p>
               )}
             </div>
-          </div>
 
-          {/* Vertical tags on the right - outside the box, stacked */}
-          {tags.length > 0 && (
-            <div className="flex flex-col gap-1 self-stretch justify-center flex-shrink-0">
-              {tags.slice(0, 4).map((tag, i) => {
-                const colors = getTagColor(tag);
-                return (
-                  <div
-                    key={i}
-                    className="w-[24px] flex-1 min-h-[28px] flex items-center justify-center rounded-[7px]"
-                    style={{ backgroundColor: colors.bg }}
-                  >
-                    <span
-                      className="text-[10px] font-medium whitespace-nowrap"
+            {/* Tags - bottom right corner, rotated */}
+            {tags.length > 0 && (
+              <div className="absolute -bottom-2 -right-2 flex gap-1 z-10">
+                {tags.slice(0, 3).map((tag, i) => {
+                  const colors = getTagColor(tag);
+                  return (
+                    <div
+                      key={i}
+                      className="px-2 py-1 rounded-md text-[10px] font-medium"
                       style={{
+                        backgroundColor: colors.bg,
                         color: colors.text,
-                        writingMode: 'vertical-rl',
-                        transform: 'rotate(180deg)',
+                        transform: `rotate(${10 + i * 5}deg)`,
                       }}
                     >
                       {tag}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-          )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
         </div>
       </a>
     </div>

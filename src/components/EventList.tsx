@@ -1,10 +1,25 @@
 import { Event, Source } from '@/lib/types';
 import { EventCard } from './EventCard';
+import { format } from 'date-fns';
 
 interface EventListProps {
   events: Event[];
   sources: Source[];
   onDeleteEvent?: (event: Event) => void;
+}
+
+// Group events by date
+function groupEventsByDate(events: Event[]): Map<string, Event[]> {
+  const groups = new Map<string, Event[]>();
+
+  for (const event of events) {
+    const dateKey = event.startDate.split('T')[0]; // YYYY-MM-DD
+    const existing = groups.get(dateKey) || [];
+    existing.push(event);
+    groups.set(dateKey, existing);
+  }
+
+  return groups;
 }
 
 export function EventList({ events, sources, onDeleteEvent }: EventListProps) {
@@ -18,16 +33,37 @@ export function EventList({ events, sources, onDeleteEvent }: EventListProps) {
     );
   }
 
+  const groupedEvents = groupEventsByDate(events);
+  const sortedDates = Array.from(groupedEvents.keys()).sort();
+
   return (
-    <div className="space-y-3">
-      {events.map((event) => (
-        <EventCard
-          key={event.id}
-          event={event}
-          source={sourceMap.get(event.sourceId)}
-          onDelete={onDeleteEvent}
-        />
-      ))}
+    <div className="space-y-6">
+      {sortedDates.map((dateKey) => {
+        const dateEvents = groupedEvents.get(dateKey) || [];
+        const date = new Date(dateKey + 'T12:00:00'); // Noon to avoid timezone issues
+        const dateLabel = format(date, 'EEEE, MMM d');
+
+        return (
+          <div key={dateKey}>
+            {/* Date header */}
+            <h2 className="text-[#2e32ff] font-bold text-[16px] mb-3">
+              {dateLabel}
+            </h2>
+
+            {/* Events for this date */}
+            <div className="bg-[#e8e8ff] rounded-lg p-4 space-y-4">
+              {dateEvents.map((event) => (
+                <EventCard
+                  key={event.id}
+                  event={event}
+                  source={sourceMap.get(event.sourceId)}
+                  onDelete={onDeleteEvent}
+                />
+              ))}
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }
