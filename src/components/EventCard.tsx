@@ -187,9 +187,17 @@ export function EventCard({ event, source, onDelete, squiggleSettings = {} }: Ev
         className="block"
       >
         <div className="flex items-center gap-2">
-          {/* Source name - vertical, rotated */}
+          {/* Source logo and name - vertical */}
           {source && (
-            <div className="flex-shrink-0 flex items-center justify-center w-[24px] h-[100px]">
+            <div className="flex-shrink-0 flex flex-col items-center justify-center w-[24px] h-[100px] gap-2">
+              {source.logoUrl && (
+                <img
+                  src={source.logoUrl}
+                  alt=""
+                  className="w-5 h-5 object-contain rounded flex-shrink-0"
+                  onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                />
+              )}
               <span
                 className="font-bold text-[#2e32ff] text-[14px] whitespace-nowrap"
                 style={{
