@@ -250,7 +250,7 @@ export function SourcesPage({ initialSources }: SourcesPageProps) {
       try {
         const result = await api.scrapeSource(source.id, force);
         if (result.success) {
-          totalEvents += result.eventsFound;
+          totalEvents += result.eventsFound || 0;
           successCount++;
         } else {
           errorCount++;
