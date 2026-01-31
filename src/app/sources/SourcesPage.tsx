@@ -11,39 +11,36 @@ interface ScrapingState {
   [sourceId: string]: number; // timestamp when scrape started
 }
 
-function loadScrapingState(): Set<string> {
-  if (typeof window === 'undefined') return new Set();
+function loadScrapingState(): ScrapingState {
+  if (typeof window === 'undefined') return {};
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
-    if (!stored) return new Set();
+    if (!stored) return {};
     const state: ScrapingState = JSON.parse(stored);
     const now = Date.now();
-    // Filter out stale entries (older than 5 minutes)
-    const active = Object.entries(state)
-      .filter(([, timestamp]) => now - timestamp < STALE_THRESHOLD_MS)
-      .map(([id]) => id);
-    return new Set(active);
+    // Filter out stale entries
+    const active: ScrapingState = {};
+    Object.entries(state).forEach(([id, timestamp]) => {
+      if (now - timestamp < STALE_THRESHOLD_MS) {
+        active[id] = timestamp;
+      }
+    });
+    return active;
   } catch {
-    return new Set();
+    return {};
   }
 }
 
-function saveScrapingState(scraping: Set<string>) {
+function formatElapsed(startTime: number): string {
+  const seconds = Math.floor((Date.now() - startTime) / 1000);
+  const mins = Math.floor(seconds / 60);
+  const secs = seconds % 60;
+  return `${mins}:${secs.toString().padStart(2, '0')}`;
+}
+
+function saveScrapingState(scraping: ScrapingState) {
   if (typeof window === 'undefined') return;
-  // Preserve existing timestamps, only add new ones
-  let existing: ScrapingState = {};
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) existing = JSON.parse(stored);
-  } catch {
-    // ignore
-  }
-  const state: ScrapingState = {};
-  const now = Date.now();
-  scraping.forEach((id) => {
-    state[id] = existing[id] || now;
-  });
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(scraping));
 }
 
 interface SourcesPageProps {
@@ -55,8 +52,9 @@ export function SourcesPage({ initialSources }: SourcesPageProps) {
   const [name, setName] = useState('');
   const [url, setUrl] = useState('');
   const [adding, setAdding] = useState(false);
-  const [scraping, setScraping] = useState<Set<string>>(new Set());
+  const [scraping, setScraping] = useState<ScrapingState>({});
   const [mounted, setMounted] = useState(false);
+  const [, setTick] = useState(0); // Force re-render for timer
 
   // Load scraping state from localStorage on mount
   useEffect(() => {
@@ -70,6 +68,14 @@ export function SourcesPage({ initialSources }: SourcesPageProps) {
       saveScrapingState(scraping);
     }
   }, [scraping, mounted]);
+
+  // Timer tick for elapsed time display
+  useEffect(() => {
+    const hasActive = Object.keys(scraping).length > 0;
+    if (!hasActive) return;
+    const interval = setInterval(() => setTick((t) => t + 1), 1000);
+    return () => clearInterval(interval);
+  }, [scraping]);
 
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -115,7 +121,7 @@ export function SourcesPage({ initialSources }: SourcesPageProps) {
   };
 
   const handleScrape = async (id: string, force: boolean = false) => {
-    setScraping((prev) => new Set(prev).add(id));
+    setScraping((prev) => ({ ...prev, [id]: Date.now() }));
     try {
       const url = `/api/sources/${id}/scrape${force ? '?force=true' : ''}`;
       const res = await fetch(url, { method: 'POST' });
@@ -130,9 +136,8 @@ export function SourcesPage({ initialSources }: SourcesPageProps) {
       setSources(await sourcesRes.json());
     } finally {
       setScraping((prev) => {
-        const next = new Set(prev);
-        next.delete(id);
-        return next;
+        const { [id]: _, ...rest } = prev;
+        return rest;
       });
     }
   };
@@ -206,11 +211,13 @@ export function SourcesPage({ initialSources }: SourcesPageProps) {
                 <div className="flex items-center gap-2 ml-4">
                   <button
                     onClick={(e) => handleScrape(source.id, e.shiftKey)}
-                    disabled={scraping.has(source.id)}
+                    disabled={!!scraping[source.id]}
                     title="Hold Shift to force re-scrape (ignore cache)"
                     className="px-3 py-1.5 text-sm bg-gray-100 rounded-md hover:bg-gray-200 disabled:opacity-50"
                   >
-                    {scraping.has(source.id) ? 'Scraping...' : 'Scrape Now'}
+                    {scraping[source.id]
+                      ? `Scraping... ${formatElapsed(scraping[source.id])}`
+                      : 'Scrape Now'}
                   </button>
                   <button
                     onClick={() => handleToggle(source)}
