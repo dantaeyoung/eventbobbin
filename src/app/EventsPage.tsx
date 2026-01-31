@@ -7,6 +7,8 @@ import { EventList } from '@/components/EventList';
 import { SourceFilter } from '@/components/SourceFilter';
 import { DateFilter, DateRange } from '@/components/DateFilter';
 
+const DATE_RANGE_KEY = 'eventbobbin-daterange';
+
 interface EventsPageProps {
   initialEvents: Event[];
   initialSources: Source[];
@@ -43,12 +45,35 @@ function getDateRange(range: DateRange): { from: string; to: string } | null {
   }
 }
 
+function loadDateRange(): DateRange {
+  if (typeof window === 'undefined') return 'month';
+  const stored = localStorage.getItem(DATE_RANGE_KEY);
+  if (stored && ['today', 'week', 'twoweeks', 'month', 'all'].includes(stored)) {
+    return stored as DateRange;
+  }
+  return 'month';
+}
+
 export function EventsPage({ initialEvents, initialSources }: EventsPageProps) {
   const [events, setEvents] = useState<Event[]>(initialEvents);
   const [sources] = useState<Source[]>(initialSources);
   const [selectedSources, setSelectedSources] = useState<string[]>([]);
   const [dateRange, setDateRange] = useState<DateRange>('month');
+  const [mounted, setMounted] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  // Load date range from localStorage on mount
+  useEffect(() => {
+    setDateRange(loadDateRange());
+    setMounted(true);
+  }, []);
+
+  // Save date range to localStorage when it changes
+  useEffect(() => {
+    if (mounted) {
+      localStorage.setItem(DATE_RANGE_KEY, dateRange);
+    }
+  }, [dateRange, mounted]);
 
   const fetchEvents = useCallback(async () => {
     setLoading(true);
