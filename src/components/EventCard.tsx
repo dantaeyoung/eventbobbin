@@ -24,33 +24,6 @@ function generateGoogleCalendarUrl(event: Event): string {
   return `https://calendar.google.com/calendar/render?${params}`;
 }
 
-function generateIcsContent(event: Event): string {
-  const formatIcsDate = (date: string) => date.replace(/[-:]/g, '').split('.')[0];
-  const lines = [
-    'BEGIN:VCALENDAR',
-    'VERSION:2.0',
-    'BEGIN:VEVENT',
-    `DTSTART:${formatIcsDate(event.startDate)}`,
-    `DTEND:${formatIcsDate(event.endDate || event.startDate)}`,
-    `SUMMARY:${event.title}`,
-  ];
-  if (event.location) lines.push(`LOCATION:${event.location}`);
-  if (event.description) lines.push(`DESCRIPTION:${event.description.replace(/\n/g, '\\n')}`);
-  if (event.url) lines.push(`URL:${event.url}`);
-  lines.push('END:VEVENT', 'END:VCALENDAR');
-  return lines.join('\r\n');
-}
-
-function downloadIcs(event: Event) {
-  const content = generateIcsContent(event);
-  const blob = new Blob([content], { type: 'text/calendar;charset=utf-8' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `${event.title.replace(/[^a-z0-9]/gi, '-')}.ics`;
-  a.click();
-  URL.revokeObjectURL(url);
-}
 
 export function EventCard({ event, source, onDelete }: EventCardProps) {
   const startDate = new Date(event.startDate);
@@ -73,17 +46,14 @@ export function EventCard({ event, source, onDelete }: EventCardProps) {
         >
           G
         </a>
-        <button
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            downloadIcs(event);
-          }}
+        <a
+          href={`/api/events/${event.id}/ics`}
+          onClick={(e) => e.stopPropagation()}
           className="w-6 h-6 bg-gray-100 text-gray-600 rounded-full hover:bg-gray-200 text-xs flex items-center justify-center"
-          title="Download .ics file"
+          title="Add to Calendar (.ics)"
         >
           📅
-        </button>
+        </a>
         {onDelete && (
           <button
             onClick={(e) => {
