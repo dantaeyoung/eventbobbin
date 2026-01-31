@@ -93,16 +93,19 @@ export function Calendar({ selectedDate, onSelectDate, eventDates }: CalendarPro
               key={i}
               onClick={() => handleDateClick(date)}
               className={`
-                relative aspect-square flex items-center justify-center text-sm rounded
-                ${!isCurrentMonth ? 'text-gray-300' : 'text-gray-700'}
+                aspect-square flex items-center justify-center text-sm rounded-full
+                ${!isCurrentMonth ? 'text-gray-300' : ''}
                 ${isTodayDate ? 'font-bold' : ''}
-                ${isSelected ? 'bg-gray-900 text-white' : 'hover:bg-gray-100'}
+                ${isSelected
+                  ? 'bg-gray-900 text-white'
+                  : hasEvents && isCurrentMonth
+                    ? 'bg-blue-500 text-white'
+                    : isCurrentMonth
+                      ? 'text-gray-700 hover:bg-gray-100'
+                      : 'hover:bg-gray-50'}
               `}
             >
               {format(date, 'd')}
-              {hasEvents && !isSelected && (
-                <span className="absolute bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 bg-blue-500 rounded-full" />
-              )}
             </button>
           );
         })}
