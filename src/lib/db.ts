@@ -74,6 +74,29 @@ try {
   // Column already exists, ignore
 }
 
+// Settings table for app-wide settings (like squiggle positions)
+db.exec(`
+  CREATE TABLE IF NOT EXISTS settings (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL,
+    updatedAt TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+`);
+
+// Settings queries
+export function getSetting(key: string): string | null {
+  const row = db.prepare('SELECT value FROM settings WHERE key = ?').get(key) as { value: string } | undefined;
+  return row?.value ?? null;
+}
+
+export function setSetting(key: string, value: string): void {
+  db.prepare(`
+    INSERT INTO settings (key, value, updatedAt)
+    VALUES (?, ?, datetime('now'))
+    ON CONFLICT(key) DO UPDATE SET value = excluded.value, updatedAt = datetime('now')
+  `).run(key, value);
+}
+
 // Source queries
 export function getAllSources(): Source[] {
   return db.prepare('SELECT * FROM sources ORDER BY name').all() as Source[];

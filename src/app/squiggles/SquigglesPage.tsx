@@ -4,8 +4,9 @@ import { useState, useEffect, useRef } from 'react';
 import { Source } from '@/lib/types';
 import {
   SquiggleSettings,
-  getSquiggleSettings,
+  fetchSquiggleSettings,
   saveSquiggleSettings,
+  setSquiggleSettingsCache,
   TagSquigglePosition,
   positionToSquiggleParams,
 } from '@/lib/squiggleSettings';
@@ -123,7 +124,10 @@ export function SquigglesPage({ initialSources }: SquigglesPageProps) {
   const sortedTags = Array.from(allTags).sort();
 
   useEffect(() => {
-    setSettings(getSquiggleSettings());
+    fetchSquiggleSettings().then((s) => {
+      setSettings(s);
+      setSquiggleSettingsCache(s);
+    });
   }, []);
 
   const assignedTags = sortedTags.filter((tag) => settings[tag]);

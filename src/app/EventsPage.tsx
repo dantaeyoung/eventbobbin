@@ -8,6 +8,8 @@ import { SourceFilter } from '@/components/SourceFilter';
 import { DateFilter, DateRange } from '@/components/DateFilter';
 import { Calendar } from '@/components/Calendar';
 import { TagFilter } from '@/components/TagFilter';
+import { api } from '@/lib/api';
+import { fetchSquiggleSettings, setSquiggleSettingsCache } from '@/lib/squiggleSettings';
 
 const DATE_RANGE_KEY = 'eventbobbin-daterange';
 
@@ -112,9 +114,11 @@ export function EventsPage({ initialEvents, initialSources }: EventsPageProps) {
     setDateRange(loadDateRange());
     setMounted(true);
     // Fetch all future events for calendar dots
-    fetch('/api/events?from=' + format(startOfDay(new Date()), "yyyy-MM-dd'T'HH:mm:ss"))
-      .then((r) => r.json())
-      .then(setAllEvents);
+    api.getEvents({ from: format(startOfDay(new Date()), "yyyy-MM-dd'T'HH:mm:ss") })
+      .then(setAllEvents)
+      .catch(console.error);
+    // Load squiggle settings
+    fetchSquiggleSettings().then(setSquiggleSettingsCache);
   }, []);
 
   // Save date range to localStorage when it changes
@@ -139,33 +143,38 @@ export function EventsPage({ initialEvents, initialSources }: EventsPageProps) {
   const fetchEvents = useCallback(async () => {
     setLoading(true);
     try {
-      const params = new URLSearchParams();
-      if (effectiveSourceIds && effectiveSourceIds.length > 0) {
-        params.set('sources', effectiveSourceIds.join(','));
-      } else if (effectiveSourceIds && effectiveSourceIds.length === 0) {
+      if (effectiveSourceIds && effectiveSourceIds.length === 0) {
         // No sources match the filters, don't fetch
         setEvents([]);
         setLoading(false);
         return;
       }
 
+      let from: string | undefined;
+      let to: string | undefined;
+
       if (selectedDate) {
         // Calendar date selected - show just that day
-        params.set('from', format(startOfDay(selectedDate), "yyyy-MM-dd'T'HH:mm:ss"));
-        params.set('to', format(endOfDay(selectedDate), "yyyy-MM-dd'T'HH:mm:ss"));
+        from = format(startOfDay(selectedDate), "yyyy-MM-dd'T'HH:mm:ss");
+        to = format(endOfDay(selectedDate), "yyyy-MM-dd'T'HH:mm:ss");
       } else if (dateRange) {
         // Use date range filter
         const range = getDateRange(dateRange);
-        if (range.from) params.set('from', range.from);
-        if (range.to) params.set('to', range.to);
+        from = range.from || undefined;
+        to = range.to || undefined;
       } else {
         // No filter - show from today onwards
-        params.set('from', format(startOfDay(new Date()), "yyyy-MM-dd'T'HH:mm:ss"));
+        from = format(startOfDay(new Date()), "yyyy-MM-dd'T'HH:mm:ss");
       }
 
-      const res = await fetch(`/api/events?${params}`);
-      const data = await res.json();
+      const data = await api.getEvents({
+        from,
+        to,
+        sources: effectiveSourceIds ? effectiveSourceIds.join(',') : undefined,
+      });
       setEvents(data);
+    } catch (error) {
+      console.error('Failed to fetch events:', error);
     } finally {
       setLoading(false);
     }
@@ -177,10 +186,12 @@ export function EventsPage({ initialEvents, initialSources }: EventsPageProps) {
 
   const handleDeleteEvent = async () => {
     if (!eventToDelete) return;
-    const res = await fetch(`/api/events/${eventToDelete.id}`, { method: 'DELETE' });
-    if (res.ok) {
+    try {
+      await api.deleteEvent(eventToDelete.id);
       setEvents(events.filter((e) => e.id !== eventToDelete.id));
       setAllEvents(allEvents.filter((e) => e.id !== eventToDelete.id));
+    } catch (error) {
+      console.error('Failed to delete event:', error);
     }
     setEventToDelete(null);
   };

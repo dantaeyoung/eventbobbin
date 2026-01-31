@@ -1,7 +1,7 @@
 // API client that supports local or remote API
 // Set NEXT_PUBLIC_API_URL in .env.local to use remote API
 
-const getApiUrl = () => {
+export const getApiUrl = () => {
   // In browser, use the public env var
   if (typeof window !== 'undefined') {
     return process.env.NEXT_PUBLIC_API_URL || '';

@@ -6,6 +6,7 @@ import { format } from 'date-fns';
 import { ToastContainer, useToasts } from '@/components/Toast';
 import { TagInput } from '@/components/TagInput';
 import { getTagColor } from '@/lib/tagColors';
+import { api } from '@/lib/api';
 
 function formatElapsed(startTime: string): string {
   const seconds = Math.floor((Date.now() - new Date(startTime).getTime()) / 1000);
@@ -26,8 +27,11 @@ export function SourcesPage({ initialSources }: SourcesPageProps) {
   const [tags, setTags] = useState('');
   const [adding, setAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [editField, setEditField] = useState<'instructions' | 'tags'>('instructions');
+  const [editField, setEditField] = useState<'instructions' | 'tags' | 'name' | 'url' | 'full'>('instructions');
   const [editValue, setEditValue] = useState('');
+  const [editForm, setEditForm] = useState<{ name: string; url: string; tags: string; instructions: string }>({
+    name: '', url: '', tags: '', instructions: '',
+  });
   const [, setTick] = useState(0); // Force re-render for timer
   const { toasts, addToast, removeToast } = useToasts();
 
@@ -54,9 +58,11 @@ export function SourcesPage({ initialSources }: SourcesPageProps) {
     const interval = setInterval(async () => {
       setTick((t) => t + 1);
       // Poll for source updates every 2 seconds
-      const res = await fetch('/api/sources');
-      if (res.ok) {
-        setSources(await res.json());
+      try {
+        const sources = await api.getSources();
+        setSources(sources);
+      } catch {
+        // ignore fetch errors during polling
       }
     }, 2000);
     return () => clearInterval(interval);
@@ -68,69 +74,79 @@ export function SourcesPage({ initialSources }: SourcesPageProps) {
 
     setAdding(true);
     try {
-      const res = await fetch('/api/sources', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name,
-          url,
-          scrapeInstructions: instructions || null,
-          tags: tags || null,
-        }),
+      const source = await api.createSource({
+        name,
+        url,
+        scrapeInstructions: instructions || null,
+        tags: tags || null,
       });
-      if (res.ok) {
-        const source = await res.json();
-        setSources([...sources, source]);
-        setName('');
-        setUrl('');
-        setInstructions('');
-        setTags('');
-      }
+      setSources([...sources, source]);
+      setName('');
+      setUrl('');
+      setInstructions('');
+      setTags('');
+    } catch (error) {
+      console.error('Failed to add source:', error);
     } finally {
       setAdding(false);
     }
   };
 
-  const handleEdit = (source: Source, field: 'instructions' | 'tags') => {
+  const handleEdit = (source: Source, field: 'instructions' | 'tags' | 'full') => {
     setEditingId(source.id);
     setEditField(field);
-    setEditValue(field === 'instructions' ? source.scrapeInstructions || '' : source.tags || '');
+    if (field === 'full') {
+      setEditForm({
+        name: source.name,
+        url: source.url,
+        tags: source.tags || '',
+        instructions: source.scrapeInstructions || '',
+      });
+    } else {
+      setEditValue(field === 'instructions' ? source.scrapeInstructions || '' : source.tags || '');
+    }
   };
 
   const handleSaveEdit = async (id: string) => {
-    const body = editField === 'instructions'
-      ? { scrapeInstructions: editValue || null }
-      : { tags: editValue || null };
-    const res = await fetch(`/api/sources/${id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    });
-    if (res.ok) {
-      const updated = await res.json();
+    try {
+      let body: Partial<Source>;
+      if (editField === 'full') {
+        body = {
+          name: editForm.name,
+          url: editForm.url,
+          tags: editForm.tags || null,
+          scrapeInstructions: editForm.instructions || null,
+        };
+      } else if (editField === 'instructions') {
+        body = { scrapeInstructions: editValue || null };
+      } else {
+        body = { tags: editValue || null };
+      }
+      const updated = await api.updateSource(id, body);
       setSources(sources.map((s) => (s.id === id ? updated : s)));
       setEditingId(null);
+    } catch (error) {
+      console.error('Failed to save edit:', error);
     }
   };
 
   const handleDelete = async (id: string) => {
     if (!confirm('Delete this source and all its events?')) return;
 
-    const res = await fetch(`/api/sources/${id}`, { method: 'DELETE' });
-    if (res.ok) {
+    try {
+      await api.deleteSource(id);
       setSources(sources.filter((s) => s.id !== id));
+    } catch (error) {
+      console.error('Failed to delete source:', error);
     }
   };
 
   const handleToggle = async (source: Source) => {
-    const res = await fetch(`/api/sources/${source.id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ enabled: !source.enabled }),
-    });
-    if (res.ok) {
-      const updated = await res.json();
+    try {
+      const updated = await api.updateSource(source.id, { enabled: !source.enabled });
       setSources(sources.map((s) => (s.id === source.id ? updated : s)));
+    } catch (error) {
+      console.error('Failed to toggle source:', error);
     }
   };
 
@@ -140,29 +156,35 @@ export function SourcesPage({ initialSources }: SourcesPageProps) {
       s.id === id ? { ...s, scrapingStartedAt: new Date().toISOString() } : s
     ));
 
-    const scrapeUrl = `/api/sources/${id}/scrape${force ? '?force=true' : ''}`;
-    const res = await fetch(scrapeUrl, { method: 'POST' });
-    const result = await res.json();
+    try {
+      const result = await api.scrapeSource(id, force);
 
-    if (result.alreadyScraping) {
-      addToast('Already scraping this source', 'info');
-      return;
-    }
+      if (result.alreadyScraping) {
+        addToast('Already scraping this source', 'info');
+        return;
+      }
 
-    if (result.success) {
-      addToast(
-        result.skipped
-          ? 'No changes detected'
-          : `Found ${result.eventsFound} event${result.eventsFound !== 1 ? 's' : ''}`,
-        'success'
-      );
-    } else {
-      addToast(`Error: ${result.error}`, 'error');
+      if (result.success) {
+        addToast(
+          result.skipped
+            ? 'No changes detected'
+            : `Found ${result.eventsFound} event${result.eventsFound !== 1 ? 's' : ''}`,
+          'success'
+        );
+      } else {
+        addToast(`Error: ${result.error}`, 'error');
+      }
+    } catch (error) {
+      addToast(`Error: ${error}`, 'error');
     }
 
     // Refresh sources to get updated state
-    const sourcesRes = await fetch('/api/sources');
-    setSources(await sourcesRes.json());
+    try {
+      const sources = await api.getSources();
+      setSources(sources);
+    } catch {
+      // ignore
+    }
   };
 
   return (
@@ -239,97 +261,161 @@ export function SourcesPage({ initialSources }: SourcesPageProps) {
             >
               <div className="flex items-start justify-between">
                 <div className="flex-1 min-w-0">
-                  <h3 className="font-semibold text-gray-900">{source.name}</h3>
-                  <a
-                    href={source.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-sm text-blue-600 hover:underline truncate block"
-                  >
-                    {source.url}
-                  </a>
-                  <div className="text-sm text-gray-500 mt-1">
-                    {source.lastScrapedAt
-                      ? `Last scraped: ${format(new Date(source.lastScrapedAt), 'MMM d, h:mm a')}`
-                      : 'Never scraped'}
-                  </div>
-                  {/* Tags display */}
-                  {source.tags && editingId !== source.id && (
-                    <div className="flex flex-wrap gap-1 mt-2">
-                      {source.tags.split(',').map((tag, i) => {
-                        const colors = getTagColor(tag.trim());
-                        return (
-                          <span
-                            key={i}
-                            onClick={() => handleEdit(source, 'tags')}
-                            className="px-2 py-0.5 text-xs rounded-full cursor-pointer hover:opacity-80"
-                            style={{ backgroundColor: colors.bg, color: colors.text }}
-                          >
-                            {tag.trim()}
-                          </span>
-                        );
-                      })}
-                    </div>
-                  )}
-                  {!source.tags && editingId !== source.id && (
-                    <button
-                      onClick={() => handleEdit(source, 'tags')}
-                      className="text-sm text-gray-400 mt-1 hover:text-gray-600"
-                    >
-                      + Add tags
-                    </button>
-                  )}
-                  {/* Edit form */}
-                  {editingId === source.id ? (
-                    <div className="flex gap-2 mt-2">
-                      {editField === 'tags' ? (
-                        <TagInput
-                          value={editValue}
-                          onChange={setEditValue}
-                          allTags={allTags}
-                          placeholder="Tags (comma-separated)"
-                          className="flex-1 px-2 py-1 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-900"
-                          autoFocus
-                        />
-                      ) : (
+                  {/* Full edit form */}
+                  {editingId === source.id && editField === 'full' ? (
+                    <div className="space-y-3">
+                      <div className="flex gap-3">
                         <input
                           type="text"
-                          value={editValue}
-                          onChange={(e) => setEditValue(e.target.value)}
-                          placeholder="AI scrape filter"
-                          className="flex-1 px-2 py-1 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-900"
+                          value={editForm.name}
+                          onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                          placeholder="Source name"
+                          className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-900"
                           autoFocus
                         />
-                      )}
-                      <button
-                        onClick={() => handleSaveEdit(source.id)}
-                        className="px-2 py-1 text-sm bg-gray-900 text-white rounded-md hover:bg-gray-800"
-                      >
-                        Save
-                      </button>
-                      <button
-                        onClick={() => setEditingId(null)}
-                        className="px-2 py-1 text-sm bg-gray-100 rounded-md hover:bg-gray-200"
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  ) : source.scrapeInstructions ? (
-                    <div
-                      onClick={() => handleEdit(source, 'instructions')}
-                      className="text-sm text-purple-600 mt-1 cursor-pointer hover:text-purple-800"
-                      title="Click to edit - tells AI what events to extract"
-                    >
-                      AI filter: {source.scrapeInstructions}
+                        <input
+                          type="url"
+                          value={editForm.url}
+                          onChange={(e) => setEditForm({ ...editForm, url: e.target.value })}
+                          placeholder="https://example.com/events"
+                          className="flex-[2] px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-900"
+                        />
+                      </div>
+                      <div className="flex gap-3">
+                        <TagInput
+                          value={editForm.tags}
+                          onChange={(tags) => setEditForm({ ...editForm, tags })}
+                          allTags={allTags}
+                          placeholder="Tags (comma-separated)"
+                          className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-900 text-sm"
+                        />
+                        <input
+                          type="text"
+                          value={editForm.instructions}
+                          onChange={(e) => setEditForm({ ...editForm, instructions: e.target.value })}
+                          placeholder="AI scrape filter (optional)"
+                          className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-900 text-sm"
+                        />
+                      </div>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => handleSaveEdit(source.id)}
+                          className="px-3 py-1.5 text-sm bg-gray-900 text-white rounded-md hover:bg-gray-800"
+                        >
+                          Save Changes
+                        </button>
+                        <button
+                          onClick={() => setEditingId(null)}
+                          className="px-3 py-1.5 text-sm bg-gray-100 rounded-md hover:bg-gray-200"
+                        >
+                          Cancel
+                        </button>
+                      </div>
                     </div>
                   ) : (
-                    <button
-                      onClick={() => handleEdit(source, 'instructions')}
-                      className="text-sm text-gray-400 hover:text-gray-600"
-                      title="Tell AI what events to extract from this page"
-                    >
-                      + Add AI filter
-                    </button>
+                    <>
+                      <div className="flex items-center gap-2">
+                        <h3 className="font-semibold text-gray-900">{source.name}</h3>
+                        <button
+                          onClick={() => handleEdit(source, 'full')}
+                          className="text-xs text-gray-400 hover:text-gray-600"
+                          title="Edit source"
+                        >
+                          Edit
+                        </button>
+                      </div>
+                      <a
+                        href={source.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-sm text-blue-600 hover:underline truncate block"
+                      >
+                        {source.url}
+                      </a>
+                      <div className="text-sm text-gray-500 mt-1">
+                        {source.lastScrapedAt
+                          ? `Last scraped: ${format(new Date(source.lastScrapedAt), 'MMM d, h:mm a')}`
+                          : 'Never scraped'}
+                      </div>
+                      {/* Tags display */}
+                      {source.tags && editingId !== source.id && (
+                        <div className="flex flex-wrap gap-1 mt-2">
+                          {source.tags.split(',').map((tag, i) => {
+                            const colors = getTagColor(tag.trim());
+                            return (
+                              <span
+                                key={i}
+                                onClick={() => handleEdit(source, 'tags')}
+                                className="px-2 py-0.5 text-xs rounded-full cursor-pointer hover:opacity-80"
+                                style={{ backgroundColor: colors.bg, color: colors.text }}
+                              >
+                                {tag.trim()}
+                              </span>
+                            );
+                          })}
+                        </div>
+                      )}
+                      {!source.tags && editingId !== source.id && (
+                        <button
+                          onClick={() => handleEdit(source, 'tags')}
+                          className="text-sm text-gray-400 mt-1 hover:text-gray-600"
+                        >
+                          + Add tags
+                        </button>
+                      )}
+                      {/* Inline edit form for tags/instructions */}
+                      {editingId === source.id && editField !== 'full' ? (
+                        <div className="flex gap-2 mt-2">
+                          {editField === 'tags' ? (
+                            <TagInput
+                              value={editValue}
+                              onChange={setEditValue}
+                              allTags={allTags}
+                              placeholder="Tags (comma-separated)"
+                              className="flex-1 px-2 py-1 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-900"
+                              autoFocus
+                            />
+                          ) : (
+                            <input
+                              type="text"
+                              value={editValue}
+                              onChange={(e) => setEditValue(e.target.value)}
+                              placeholder="AI scrape filter"
+                              className="flex-1 px-2 py-1 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-900"
+                              autoFocus
+                            />
+                          )}
+                          <button
+                            onClick={() => handleSaveEdit(source.id)}
+                            className="px-2 py-1 text-sm bg-gray-900 text-white rounded-md hover:bg-gray-800"
+                          >
+                            Save
+                          </button>
+                          <button
+                            onClick={() => setEditingId(null)}
+                            className="px-2 py-1 text-sm bg-gray-100 rounded-md hover:bg-gray-200"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      ) : source.scrapeInstructions ? (
+                        <div
+                          onClick={() => handleEdit(source, 'instructions')}
+                          className="text-sm text-purple-600 mt-1 cursor-pointer hover:text-purple-800"
+                          title="Click to edit - tells AI what events to extract"
+                        >
+                          AI filter: {source.scrapeInstructions}
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => handleEdit(source, 'instructions')}
+                          className="text-sm text-gray-400 hover:text-gray-600"
+                          title="Tell AI what events to extract from this page"
+                        >
+                          + Add AI filter
+                        </button>
+                      )}
+                    </>
                   )}
                 </div>
                 <div className="flex items-center gap-2 ml-4">
