@@ -190,7 +190,7 @@ export function EventCard({ event, source, onDelete }: EventCardProps) {
           )}
 
           {/* Squiggle box with content */}
-          <div className="relative w-[380px] min-h-[130px] bg-white flex-shrink-0">
+          <div className="relative w-[380px] min-h-[130px] flex-shrink-0">
             {/* Wiggly border SVG */}
             <svg
               className="absolute inset-0 w-full h-full pointer-events-none"
