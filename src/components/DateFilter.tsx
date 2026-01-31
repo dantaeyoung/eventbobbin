@@ -1,6 +1,6 @@
 'use client';
 
-export type DateRange = 'today' | 'week' | 'month' | 'all';
+export type DateRange = 'today' | 'week' | 'twoweeks' | 'month' | 'all';
 
 interface DateFilterProps {
   selected: DateRange;
@@ -10,6 +10,7 @@ interface DateFilterProps {
 const ranges: { value: DateRange; label: string }[] = [
   { value: 'today', label: 'Today' },
   { value: 'week', label: 'This Week' },
+  { value: 'twoweeks', label: '2 Weeks' },
   { value: 'month', label: 'This Month' },
   { value: 'all', label: 'All' },
 ];

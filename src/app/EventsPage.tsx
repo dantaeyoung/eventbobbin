@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { format, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth } from 'date-fns';
+import { format, startOfDay, endOfDay, endOfWeek, endOfMonth, addDays } from 'date-fns';
 import { Event, Source } from '@/lib/types';
 import { EventList } from '@/components/EventList';
 import { SourceFilter } from '@/components/SourceFilter';
@@ -24,6 +24,11 @@ function getDateRange(range: DateRange): { from: string; to: string } | null {
       return {
         from: format(startOfDay(now), "yyyy-MM-dd'T'HH:mm:ss"),
         to: format(endOfWeek(now), "yyyy-MM-dd'T'HH:mm:ss"),
+      };
+    case 'twoweeks':
+      return {
+        from: format(startOfDay(now), "yyyy-MM-dd'T'HH:mm:ss"),
+        to: format(endOfDay(addDays(now, 14)), "yyyy-MM-dd'T'HH:mm:ss"),
       };
     case 'month':
       return {
