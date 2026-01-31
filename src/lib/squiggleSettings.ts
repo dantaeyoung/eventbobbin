@@ -118,27 +118,29 @@ export function getAverageSquigglePosition(tags: string[]): TagSquigglePosition 
 }
 
 // Convert position to squiggle parameters
-// X: Order → Chaos (randomness, irregularity)
-// Y: Rigid → Open (smoothness, amplitude, breathing room)
+// X: Order → Chaos (periodicity vs randomness)
+// Y: Smooth → Active (low frequency vs high frequency)
 export function positionToSquiggleParams(position: TagSquigglePosition): {
   wiggleAmount: number;
   segmentLength: number;
   tension: number;
   chaos: number; // 0-1, affects randomness variation
 } {
-  const chaos = position.x; // 0 = perfectly regular, 1 = highly irregular
-  const openness = position.y; // 0 = tight/rigid, 1 = loose/open
+  const chaos = position.x; // 0 = periodic/regular, 1 = random/chaotic
+  const activity = position.y; // 0 = smooth/low frequency, 1 = active/high frequency
 
-  // Openness affects amplitude and smoothness
-  // Rigid (0): small wiggles, sharp angles (high tension)
-  // Open (1): large flowing curves, smooth (low tension)
-  const wiggleAmount = 2 + (openness * 6); // 2 to 8
-  const tension = 10 - (openness * 6); // 10 (sharp) to 4 (smooth)
+  // Activity affects frequency (segment length) and amplitude
+  // Smooth (0): long segments, gentle curves, low amplitude
+  // Active (1): short segments, many wiggles, higher amplitude
+  const segmentLength = 40 - (activity * 28); // 40 (smooth) to 12 (active)
+  const wiggleAmount = 2 + (activity * 6); // 2 (gentle) to 8 (energetic)
 
-  // Chaos affects segment length (irregular = varying density)
-  // Order (0): regular spacing
-  // Chaos (1): denser, more erratic
-  const segmentLength = 24 - (chaos * 12); // 24 to 12
+  // Tension affects curve smoothness - keep it relatively smooth
+  const tension = 6 - (activity * 2); // 6 (smoother) to 4 (slightly sharper)
+
+  // Chaos affects randomness in wiggle positions
+  // Order (0): periodic, predictable pattern
+  // Chaos (1): random, unpredictable
 
   return { wiggleAmount, segmentLength, tension, chaos };
 }

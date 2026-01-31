@@ -211,9 +211,9 @@ export function SquigglesPage({ initialSources }: SquigglesPageProps) {
         <p className="text-gray-600 mb-6">
           Drag tags onto the grid to assign squiggle styles. Position determines the vibe:
           <br />
-          <strong>→ Order ↔ Chaos:</strong> Left = regular, predictable patterns. Right = wild, irregular energy.
+          <strong>→ Order ↔ Chaos:</strong> Left = periodic, predictable patterns. Right = random, chaotic.
           <br />
-          <strong>↓ Rigid ↔ Open:</strong> Top = tight, controlled. Bottom = loose, flowing, expansive.
+          <strong>↓ Smooth ↔ Active:</strong> Top = low frequency, gentle. Bottom = high frequency, energetic.
         </p>
 
         <div className="flex gap-8">
@@ -241,26 +241,26 @@ export function SquigglesPage({ initialSources }: SquigglesPageProps) {
                 <span>Chaos</span>
               </div>
               <div className="absolute -left-8 top-0 bottom-0 flex flex-col justify-between text-xs text-gray-500">
-                <span className="origin-left -rotate-90 translate-y-4">Rigid</span>
+                <span className="origin-left -rotate-90 translate-y-4">Smooth</span>
                 <span className="origin-left -rotate-90 translate-y-6 font-medium">↑ ↓</span>
-                <span className="origin-left -rotate-90 translate-y-4">Open</span>
+                <span className="origin-left -rotate-90 translate-y-4">Active</span>
               </div>
 
               {/* Corner previews with labels */}
               <div className="absolute top-2 left-2 opacity-40 pointer-events-none">
-                <div className="text-[9px] text-gray-500 mb-1 text-center">Order + Rigid</div>
+                <div className="text-[9px] text-gray-500 mb-1 text-center">Order + Smooth</div>
                 <SquigglePreview position={{ x: 0, y: 0 }} />
               </div>
               <div className="absolute top-2 right-2 opacity-40 pointer-events-none">
-                <div className="text-[9px] text-gray-500 mb-1 text-center">Chaos + Rigid</div>
+                <div className="text-[9px] text-gray-500 mb-1 text-center">Chaos + Smooth</div>
                 <SquigglePreview position={{ x: 1, y: 0 }} />
               </div>
               <div className="absolute bottom-2 left-2 opacity-40 pointer-events-none">
-                <div className="text-[9px] text-gray-500 mb-1 text-center">Order + Open</div>
+                <div className="text-[9px] text-gray-500 mb-1 text-center">Order + Active</div>
                 <SquigglePreview position={{ x: 0, y: 1 }} />
               </div>
               <div className="absolute bottom-2 right-2 opacity-40 pointer-events-none">
-                <div className="text-[9px] text-gray-500 mb-1 text-center">Chaos + Open</div>
+                <div className="text-[9px] text-gray-500 mb-1 text-center">Chaos + Active</div>
                 <SquigglePreview position={{ x: 1, y: 1 }} />
               </div>
 
