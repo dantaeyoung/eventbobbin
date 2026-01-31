@@ -2,12 +2,16 @@
 // Set NEXT_PUBLIC_API_URL in .env.local to use remote API
 
 export const getApiUrl = () => {
+  let url = '';
   // In browser, use the public env var
   if (typeof window !== 'undefined') {
-    return process.env.NEXT_PUBLIC_API_URL || '';
+    url = process.env.NEXT_PUBLIC_API_URL || '';
+  } else {
+    // On server, use internal API URL or empty for local
+    url = process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || '';
   }
-  // On server, use internal API URL or empty for local
-  return process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || '';
+  // Remove trailing slash to avoid double slashes
+  return url.replace(/\/$/, '');
 };
 
 export async function apiFetch<T>(
