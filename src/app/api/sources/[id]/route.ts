@@ -25,6 +25,8 @@ export async function PUT(
     url: body.url,
     enabled: body.enabled,
     scrapeIntervalHours: body.scrapeIntervalHours,
+    scrapeInstructions: body.scrapeInstructions,
+    tags: body.tags,
   });
 
   if (!source) {

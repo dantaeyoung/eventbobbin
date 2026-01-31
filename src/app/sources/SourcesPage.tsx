@@ -187,7 +187,7 @@ export function SourcesPage({ initialSources }: SourcesPageProps) {
               />
               <input
                 type="text"
-                placeholder="Filter instructions (optional)"
+                placeholder="AI scrape filter (optional) e.g., 'Only NYC events'"
                 value={instructions}
                 onChange={(e) => setInstructions(e.target.value)}
                 className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-900 text-sm"
@@ -256,7 +256,7 @@ export function SourcesPage({ initialSources }: SourcesPageProps) {
                         type="text"
                         value={editValue}
                         onChange={(e) => setEditValue(e.target.value)}
-                        placeholder={editField === 'tags' ? "Tags (comma-separated)" : "Filter instructions"}
+                        placeholder={editField === 'tags' ? "Tags (comma-separated)" : "AI scrape filter"}
                         className="flex-1 px-2 py-1 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-900"
                         autoFocus
                       />
@@ -277,16 +277,17 @@ export function SourcesPage({ initialSources }: SourcesPageProps) {
                     <div
                       onClick={() => handleEdit(source, 'instructions')}
                       className="text-sm text-purple-600 mt-1 cursor-pointer hover:text-purple-800"
-                      title="Click to edit"
+                      title="Click to edit - tells AI what events to extract"
                     >
-                      Filter: {source.scrapeInstructions}
+                      AI filter: {source.scrapeInstructions}
                     </div>
                   ) : (
                     <button
                       onClick={() => handleEdit(source, 'instructions')}
                       className="text-sm text-gray-400 hover:text-gray-600"
+                      title="Tell AI what events to extract from this page"
                     >
-                      + Add filter
+                      + Add AI filter
                     </button>
                   )}
                 </div>
