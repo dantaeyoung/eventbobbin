@@ -50,3 +50,4 @@ data/*.db-wal
 # Environment
 .env
 .env.local
+.instagram-cookies.json

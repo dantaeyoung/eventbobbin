@@ -5,7 +5,7 @@ import {
   upsertEvent,
 } from '../db';
 import { Source } from '../types';
-import { renderPage, closeBrowser } from './browser';
+import { renderPage, renderInstagramPage, closeBrowser } from './browser';
 import { extractEvents } from './extract';
 import { detectLogo, cacheLogoImage } from './logo';
 import { fetchEventPageDetails } from './eventImage';
@@ -62,14 +62,15 @@ export async function scrapeSource(
       // Handle Instagram profile pages (multiple posts)
       if (isInstagramProfileUrl(source.url)) {
         console.log('  Scraping Instagram profile for recent posts...');
-        const profileEvents = await extractEventsFromInstagramProfile(source.url, renderPage);
+        // Use authenticated Instagram page renderer
+        const profileEvents = await extractEventsFromInstagramProfile(source.url, renderInstagramPage);
 
         if (profileEvents.length === 0) {
           return {
             success: false,
             eventsFound: 0,
             skipped: false,
-            error: 'Instagram requires login to view profiles. Try adding individual post URLs (instagram.com/p/...) instead.'
+            error: 'No posts found. Set INSTAGRAM_USERNAME and INSTAGRAM_PASSWORD env vars, or use individual post URLs.'
           };
         }
 
