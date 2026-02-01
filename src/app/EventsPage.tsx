@@ -248,47 +248,50 @@ export function EventsPage({ initialEvents, initialSources }: EventsPageProps) {
 
         <div className="flex gap-6 h-full">
           {/* Left: Calendar and Sources - hidden on mobile */}
-          <div className="hidden md:block flex-shrink-0 w-[220px] overflow-y-auto">
-            <Calendar
-              selectedDate={selectedDate}
-              onSelectDate={handleCalendarSelect}
-              eventDates={eventDates}
-            />
+          <div className="hidden md:flex md:flex-col flex-shrink-0 w-[220px] h-full">
+            {/* Fixed section: Calendar and City */}
+            <div className="flex-shrink-0">
+              <Calendar
+                selectedDate={selectedDate}
+                onSelectDate={handleCalendarSelect}
+                eventDates={eventDates}
+              />
 
-            {/* City Filter */}
-            {cities.length > 0 && (
-              <div className="mt-4">
-                <h3 className="text-sm font-medium text-gray-700 mb-2">City</h3>
-                <div className="flex flex-wrap gap-1">
-                  <button
-                    onClick={() => setSelectedCity(null)}
-                    className={`px-3 py-1 text-sm rounded-md ${
-                      selectedCity === null
-                        ? 'bg-gray-900 text-white'
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                    }`}
-                  >
-                    All
-                  </button>
-                  {cities.map((city) => (
+              {/* City Filter */}
+              {cities.length > 0 && (
+                <div className="mt-4">
+                  <h3 className="text-sm font-medium text-gray-700 mb-2">City</h3>
+                  <div className="flex flex-wrap gap-1">
                     <button
-                      key={city}
-                      onClick={() => setSelectedCity(city)}
+                      onClick={() => setSelectedCity(null)}
                       className={`px-3 py-1 text-sm rounded-md ${
-                        selectedCity === city
+                        selectedCity === null
                           ? 'bg-gray-900 text-white'
                           : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                       }`}
                     >
-                      {city}
+                      All
                     </button>
-                  ))}
+                    {cities.map((city) => (
+                      <button
+                        key={city}
+                        onClick={() => setSelectedCity(city)}
+                        className={`px-3 py-1 text-sm rounded-md ${
+                          selectedCity === city
+                            ? 'bg-gray-900 text-white'
+                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                        }`}
+                      >
+                        {city}
+                      </button>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
+            </div>
 
-            {/* Sources List */}
-            <div className="mt-6">
+            {/* Scrollable section: Sources List */}
+            <div className="mt-6 flex-1 min-h-0 overflow-y-auto">
               <h3 className="text-sm font-medium text-gray-700 mb-2">Sources</h3>
               <div className="space-y-1">
                 <button
