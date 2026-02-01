@@ -27,6 +27,7 @@ export async function PUT(
     scrapeIntervalHours: body.scrapeIntervalHours,
     scrapeInstructions: body.scrapeInstructions,
     tags: body.tags,
+    city: body.city,
   });
 
   if (!source) {
