@@ -7,8 +7,39 @@ import {
 import { Source } from '../types';
 import { renderPage, closeBrowser } from './browser';
 import { extractEvents } from './extract';
-import { detectLogo } from './logo';
+import { detectLogo, cacheLogoImage } from './logo';
 import { fetchEventPageDetails } from './eventImage';
+
+/**
+ * Parse various date formats from JSON-LD schema into ISO string
+ * Handles: ISO 8601, "2024-02-15T19:00", "2024-02-15", etc.
+ */
+function parseSchemaDate(dateStr: string): string | null {
+  try {
+    // Already valid ISO format
+    if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(dateStr)) {
+      const date = new Date(dateStr);
+      if (!isNaN(date.getTime())) {
+        return date.toISOString();
+      }
+    }
+    // Date only format (YYYY-MM-DD)
+    if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+      const date = new Date(dateStr + 'T00:00:00');
+      if (!isNaN(date.getTime())) {
+        return date.toISOString();
+      }
+    }
+    // Try generic parsing as fallback
+    const date = new Date(dateStr);
+    if (!isNaN(date.getTime())) {
+      return date.toISOString();
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
 
 export async function scrapeSource(
   source: Source,
@@ -41,6 +72,7 @@ export async function scrapeSource(
 
     // Fetch additional details from event pages (og tags, JSON-LD schema, etc.)
     let detailsFetched = 0;
+    let datesUpdated = 0;
     for (const event of events) {
       if (event.url) {
         const details = await fetchEventPageDetails(event.url);
@@ -56,6 +88,20 @@ export async function scrapeSource(
           if (details.venue && !event.location) {
             event.location = details.venue;
           }
+          // Use schema dates - they're usually more accurate than LLM extraction
+          if (details.startDate) {
+            const schemaDate = parseSchemaDate(details.startDate);
+            if (schemaDate) {
+              event.startDate = schemaDate;
+              datesUpdated++;
+            }
+          }
+          if (details.endDate) {
+            const schemaDate = parseSchemaDate(details.endDate);
+            if (schemaDate) {
+              event.endDate = schemaDate;
+            }
+          }
           // Store extra details in a separate field for the raw data
           (event as unknown as Record<string, unknown>).pageDetails = {
             price: details.price,
@@ -66,7 +112,7 @@ export async function scrapeSource(
       }
     }
     if (detailsFetched > 0) {
-      console.log(`  Fetched details from ${detailsFetched} event pages`);
+      console.log(`  Fetched details from ${detailsFetched} event pages (${datesUpdated} dates from schema)`);
     }
 
     // Upsert events
@@ -93,11 +139,15 @@ export async function scrapeSource(
       lastContentHash: hash,
     });
 
-    // Detect logo if not already set
+    // Detect and cache logo if not already set
     if (!source.logoUrl) {
       try {
-        const logoUrl = await detectLogo(source.url, source.id);
-        if (logoUrl) {
+        const detectedLogoUrl = await detectLogo(source.url, source.id);
+        if (detectedLogoUrl) {
+          // Try to cache the logo
+          const cachedUrl = await cacheLogoImage(source.id, detectedLogoUrl);
+          // Use cached URL if available, otherwise use the original
+          const logoUrl = cachedUrl || detectedLogoUrl;
           await updateSource(source.id, { logoUrl });
           console.log(`  Set logo: ${logoUrl}`);
         }

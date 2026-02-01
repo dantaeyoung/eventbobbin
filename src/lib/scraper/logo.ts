@@ -1,7 +1,9 @@
 import OpenAI from 'openai';
 import { renderPage } from './browser';
-import { recordLLMUsage } from '../db';
+import { recordLLMUsage, updateSource, db } from '../db';
 import { chromium, Browser } from 'playwright';
+import { sources } from '../schema';
+import { eq } from 'drizzle-orm';
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -180,6 +182,68 @@ Return ONLY the URL, "SVG_EMBEDDED", or "NOT_FOUND" - no explanation.`,
     }
   } catch (error) {
     console.error(`  Logo detection error:`, error);
+    return null;
+  }
+}
+
+/**
+ * Download a logo image and cache it as base64 in the database.
+ * Returns the cached URL (/api/sources/[id]/logo) if successful.
+ */
+export async function cacheLogoImage(
+  sourceId: string,
+  logoUrl: string
+): Promise<string | null> {
+  try {
+    console.log(`  Caching logo for source ${sourceId}: ${logoUrl}`);
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 10000);
+
+    const response = await fetch(logoUrl, {
+      signal: controller.signal,
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (compatible; EventBobbin/1.0)',
+      },
+    });
+    clearTimeout(timeout);
+
+    if (!response.ok) {
+      console.log(`  Failed to fetch logo: ${response.status}`);
+      return null;
+    }
+
+    const contentType = response.headers.get('content-type') || 'image/png';
+
+    // Only cache image types
+    if (!contentType.startsWith('image/')) {
+      console.log(`  Not an image: ${contentType}`);
+      return null;
+    }
+
+    const buffer = await response.arrayBuffer();
+    const base64 = Buffer.from(buffer).toString('base64');
+    const dataUri = `data:${contentType};base64,${base64}`;
+
+    // Check size - skip if too large (> 500KB)
+    if (base64.length > 500 * 1024) {
+      console.log(`  Logo too large (${Math.round(base64.length / 1024)}KB), skipping cache`);
+      return null;
+    }
+
+    // Store in database
+    await db
+      .update(sources)
+      .set({ logoData: dataUri })
+      .where(eq(sources.id, sourceId));
+
+    // Return the cached URL
+    const cachedUrl = `/api/sources/${sourceId}/logo`;
+    console.log(`  Cached logo (${Math.round(base64.length / 1024)}KB) -> ${cachedUrl}`);
+
+    return cachedUrl;
+  } catch (error) {
+    console.error(`  Error caching logo:`, error);
     return null;
   }
 }

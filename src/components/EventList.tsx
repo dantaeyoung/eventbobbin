@@ -11,12 +11,14 @@ interface EventListProps {
   selectedEventId?: string | null;
 }
 
-// Group events by date
+// Group events by local date
 function groupEventsByDate(events: Event[]): Map<string, Event[]> {
   const groups = new Map<string, Event[]>();
 
   for (const event of events) {
-    const dateKey = event.startDate.split('T')[0]; // YYYY-MM-DD
+    // Use local date, not UTC date from ISO string
+    const localDate = new Date(event.startDate);
+    const dateKey = format(localDate, 'yyyy-MM-dd');
     const existing = groups.get(dateKey) || [];
     existing.push(event);
     groups.set(dateKey, existing);

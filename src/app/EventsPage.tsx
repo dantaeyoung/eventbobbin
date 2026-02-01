@@ -8,6 +8,7 @@ import { Calendar } from '@/components/Calendar';
 import { TagFilter } from '@/components/TagFilter';
 import { AppNav } from '@/components/TabNav';
 import { DitheredBackground } from '@/components/DitheredBackground';
+import { Tooltip } from '@/components/Tooltip';
 import { api } from '@/lib/api';
 import { fetchSquiggleSettings, setSquiggleSettingsCache, SquiggleSettings } from '@/lib/squiggleSettings';
 
@@ -49,6 +50,18 @@ function loadTags(): string[] {
     }
   }
   return [];
+}
+
+// Generate a pastel color from a string
+function stringToPastelColor(str: string): string {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = str.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const h = Math.abs(hash % 360);
+  const s = 50 + (Math.abs((hash >> 8) % 30));
+  const l = 80 + (Math.abs((hash >> 16) % 10));
+  return `hsl(${h}, ${s}%, ${l}%)`;
 }
 
 
@@ -203,9 +216,9 @@ export function EventsPage({ initialEvents, initialSources }: EventsPageProps) {
       let to: string | undefined;
 
       if (selectedDate) {
-        // Calendar date selected - show just that day
-        from = format(startOfDay(selectedDate), "yyyy-MM-dd'T'HH:mm:ss");
-        to = format(endOfDay(selectedDate), "yyyy-MM-dd'T'HH:mm:ss");
+        // Calendar date selected - show just that day (using local timezone)
+        from = startOfDay(selectedDate).toISOString();
+        to = endOfDay(selectedDate).toISOString();
       } else {
         // Show all future events from today onwards
         from = format(startOfDay(new Date()), "yyyy-MM-dd'T'HH:mm:ss");
@@ -289,38 +302,41 @@ export function EventsPage({ initialEvents, initialSources }: EventsPageProps) {
 
         <div className="flex gap-6 h-full">
           {/* Left: Calendar and Sources - hidden on mobile */}
-          <div className="hidden md:flex md:flex-col flex-shrink-0 w-[220px] h-full">
+          <div className="hidden md:flex md:flex-col flex-shrink-0 w-[280px] h-full px-5">
             {/* Fixed section: Calendar and City */}
             <div className="flex-shrink-0">
-              <Calendar
-                selectedDate={selectedDate}
-                onSelectDate={handleCalendarSelect}
-                eventDates={eventDates}
-              />
+              <div className="flex justify-center">
+                <Calendar
+                  selectedDate={selectedDate}
+                  onSelectDate={handleCalendarSelect}
+                  eventDates={eventDates}
+                />
+              </div>
 
               {/* City Filter */}
               {cities.length > 0 && (
-                <div className="mt-4">
+                <div className="mt-4 px-2">
                   <h3 className="text-sm font-medium text-gray-700 mb-2">City</h3>
                   <div className="flex flex-wrap gap-1">
                     <button
                       onClick={() => setSelectedCity(null)}
-                      className={`px-3 py-1 text-sm rounded-md ${
+                      className={`px-3 py-1 text-sm rounded-md flex items-center gap-1 italic ${
                         selectedCity === null
-                          ? 'bg-gray-900 text-white'
-                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                          ? 'bg-gradient-to-r from-gray-800 to-gray-900 text-white'
+                          : 'text-gray-500 border border-dashed border-gray-300 hover:bg-gray-50'
                       }`}
                     >
+                      <span className="text-xs">✱</span>
                       All
                     </button>
                     {cities.map((city) => (
                       <button
                         key={city}
                         onClick={() => setSelectedCity(city)}
-                        className={`px-3 py-1 text-sm rounded-md ${
+                        className={`px-3 py-1 text-sm rounded-md border ${
                           selectedCity === city
-                            ? 'bg-gray-900 text-white'
-                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                            ? 'bg-gray-900 text-white border-gray-900'
+                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200 border-gray-100'
                         }`}
                       >
                         {city}
@@ -337,12 +353,13 @@ export function EventsPage({ initialEvents, initialSources }: EventsPageProps) {
               <div className="space-y-1">
                 <button
                   onClick={() => setSelectedSources([])}
-                  className={`w-full text-left px-2 py-1.5 rounded text-sm transition-colors ${
+                  className={`w-full text-left px-2 py-1.5 rounded text-sm transition-colors flex items-center gap-2 italic ${
                     selectedSources.length === 0
-                      ? 'bg-gray-900 text-white'
-                      : 'hover:bg-gray-100 text-gray-700'
+                      ? 'bg-gradient-to-r from-gray-800 to-gray-900 text-white'
+                      : 'hover:bg-gray-100 text-gray-500 border border-dashed border-gray-300'
                   }`}
                 >
+                  <span className="text-xs">✱</span>
                   All Sources
                 </button>
                 {cityFilteredSources.map((source) => (
@@ -361,7 +378,10 @@ export function EventsPage({ initialEvents, initialSources }: EventsPageProps) {
                         : 'hover:bg-gray-100 text-gray-700'
                     }`}
                   >
-                    <div className="w-4 h-4 flex-shrink-0 bg-gray-200 rounded overflow-hidden">
+                    <div
+                      className="w-4 h-4 flex-shrink-0 rounded overflow-hidden"
+                      style={{ backgroundColor: source.logoUrl ? undefined : stringToPastelColor(source.name) }}
+                    >
                       {source.logoUrl && (
                         <img
                           src={source.logoUrl}
@@ -410,9 +430,9 @@ export function EventsPage({ initialEvents, initialSources }: EventsPageProps) {
             </div>
           </div>
 
-          {/* Right: Event Detail Panel */}
+          {/* Right: Event Detail Panel - Fixed position */}
           {selectedEvent && (
-            <div className="hidden md:flex flex-col flex-shrink-0 w-[350px] h-full bg-white border-l border-gray-200">
+            <div className="hidden md:flex flex-col fixed right-0 top-[57px] bottom-0 w-[350px] bg-white border-l border-gray-200 z-40">
               <div className="flex items-center justify-between p-4 border-b border-gray-200">
                 <h2 className="font-bold text-gray-900">Event Details</h2>
                 <button
@@ -425,13 +445,12 @@ export function EventsPage({ initialEvents, initialSources }: EventsPageProps) {
               <div className="flex-1 overflow-y-auto p-4 space-y-4">
                 {/* Event Image */}
                 {selectedEvent.imageUrl && (
-                  <div className="w-full bg-gray-100 rounded-lg overflow-hidden">
-                    <img
-                      src={selectedEvent.imageUrl}
-                      alt=""
-                      className="w-full h-auto"
-                    />
-                  </div>
+                  <img
+                    src={selectedEvent.imageUrl}
+                    alt=""
+                    className="w-full rounded-lg"
+                    style={{ height: 'auto', maxWidth: '100%' }}
+                  />
                 )}
 
                 {/* Title */}
@@ -443,12 +462,15 @@ export function EventsPage({ initialEvents, initialSources }: EventsPageProps) {
                     {format(new Date(selectedEvent.startDate), 'EEEE, MMMM d, yyyy')}
                   </p>
                   {!selectedEvent.startDate.includes('T00:00:00') && (
-                    <p className="text-sm text-blue-600 font-medium">
-                      {format(new Date(selectedEvent.startDate), 'h:mm a')}
-                      {selectedEvent.endDate && !selectedEvent.endDate.includes('T00:00:00') && (
-                        <> – {format(new Date(selectedEvent.endDate), 'h:mm a')}</>
-                      )}
-                    </p>
+                    <Tooltip text="This time was scraped automatically - double check the source to be sure!">
+                      <span className="text-sm text-blue-600 font-medium">
+                        {format(new Date(selectedEvent.startDate), 'h:mm a')}
+                        {selectedEvent.endDate && !selectedEvent.endDate.includes('T00:00:00') && (
+                          <> – {format(new Date(selectedEvent.endDate), 'h:mm a')}</>
+                        )}
+                        <span className="ml-0.5">?</span>
+                      </span>
+                    </Tooltip>
                   )}
                 </div>
 
@@ -475,9 +497,14 @@ export function EventsPage({ initialEvents, initialSources }: EventsPageProps) {
                     <div>
                       <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Source</p>
                       <div className="flex items-center gap-2">
-                        {eventSource.logoUrl && (
-                          <img src={eventSource.logoUrl} alt="" className="w-6 h-6 object-contain" />
-                        )}
+                        <div
+                          className="w-6 h-6 rounded overflow-hidden flex-shrink-0"
+                          style={{ backgroundColor: eventSource.logoUrl ? undefined : stringToPastelColor(eventSource.name) }}
+                        >
+                          {eventSource.logoUrl && (
+                            <img src={eventSource.logoUrl} alt="" className="w-full h-full object-contain" />
+                          )}
+                        </div>
                         <span className="text-sm text-gray-700">{eventSource.name}</span>
                       </div>
                     </div>
@@ -651,22 +678,23 @@ export function EventsPage({ initialEvents, initialSources }: EventsPageProps) {
                   <div className="flex flex-wrap gap-2">
                     <button
                       onClick={() => setSelectedCity(null)}
-                      className={`px-3 py-1.5 text-sm rounded-md ${
+                      className={`px-3 py-1.5 text-sm rounded-md flex items-center gap-1 italic ${
                         selectedCity === null
-                          ? 'bg-gray-900 text-white'
-                          : 'bg-gray-100 text-gray-700'
+                          ? 'bg-gradient-to-r from-gray-800 to-gray-900 text-white'
+                          : 'text-gray-500 border border-dashed border-gray-300'
                       }`}
                     >
+                      <span className="text-xs">✱</span>
                       All
                     </button>
                     {cities.map((city) => (
                       <button
                         key={city}
                         onClick={() => setSelectedCity(city)}
-                        className={`px-3 py-1.5 text-sm rounded-md ${
+                        className={`px-3 py-1.5 text-sm rounded-md border ${
                           selectedCity === city
-                            ? 'bg-gray-900 text-white'
-                            : 'bg-gray-100 text-gray-700'
+                            ? 'bg-gray-900 text-white border-gray-900'
+                            : 'bg-gray-100 text-gray-700 border-gray-100'
                         }`}
                       >
                         {city}
@@ -692,12 +720,13 @@ export function EventsPage({ initialEvents, initialSources }: EventsPageProps) {
                 <div className="space-y-1 max-h-60 overflow-y-auto">
                   <button
                     onClick={() => setSelectedSources([])}
-                    className={`w-full text-left px-3 py-2 rounded text-sm ${
+                    className={`w-full text-left px-3 py-2 rounded text-sm flex items-center gap-2 italic ${
                       selectedSources.length === 0
-                        ? 'bg-gray-900 text-white'
-                        : 'bg-gray-100 text-gray-700'
+                        ? 'bg-gradient-to-r from-gray-800 to-gray-900 text-white'
+                        : 'bg-gray-50 text-gray-500 border border-dashed border-gray-300'
                     }`}
                   >
+                    <span className="text-xs">✱</span>
                     All Sources
                   </button>
                   {cityFilteredSources.map((source) => (
@@ -716,7 +745,10 @@ export function EventsPage({ initialEvents, initialSources }: EventsPageProps) {
                           : 'bg-gray-100 text-gray-700'
                       }`}
                     >
-                      <div className="w-5 h-5 flex-shrink-0 bg-gray-200 rounded overflow-hidden">
+                      <div
+                        className="w-5 h-5 flex-shrink-0 rounded overflow-hidden"
+                        style={{ backgroundColor: source.logoUrl ? undefined : stringToPastelColor(source.name) }}
+                      >
                         {source.logoUrl && (
                           <img
                             src={source.logoUrl}
@@ -777,13 +809,12 @@ export function EventsPage({ initialEvents, initialSources }: EventsPageProps) {
             <div className="flex-1 overflow-y-auto p-4 space-y-4">
               {/* Event Image */}
               {selectedEvent.imageUrl && (
-                <div className="w-full bg-gray-100 rounded-lg overflow-hidden">
-                  <img
-                    src={selectedEvent.imageUrl}
-                    alt=""
-                    className="w-full h-auto"
-                  />
-                </div>
+                <img
+                  src={selectedEvent.imageUrl}
+                  alt=""
+                  className="w-full rounded-lg"
+                  style={{ height: 'auto', maxWidth: '100%' }}
+                />
               )}
 
               {/* Title */}
@@ -795,12 +826,15 @@ export function EventsPage({ initialEvents, initialSources }: EventsPageProps) {
                   {format(new Date(selectedEvent.startDate), 'EEEE, MMMM d, yyyy')}
                 </p>
                 {!selectedEvent.startDate.includes('T00:00:00') && (
-                  <p className="text-sm text-blue-600 font-medium">
-                    {format(new Date(selectedEvent.startDate), 'h:mm a')}
-                    {selectedEvent.endDate && !selectedEvent.endDate.includes('T00:00:00') && (
-                      <> – {format(new Date(selectedEvent.endDate), 'h:mm a')}</>
-                    )}
-                  </p>
+                  <Tooltip text="This time was scraped automatically - double check the source to be sure!">
+                    <span className="text-sm text-blue-600 font-medium">
+                      {format(new Date(selectedEvent.startDate), 'h:mm a')}
+                      {selectedEvent.endDate && !selectedEvent.endDate.includes('T00:00:00') && (
+                        <> – {format(new Date(selectedEvent.endDate), 'h:mm a')}</>
+                      )}
+                      <span className="ml-0.5">?</span>
+                    </span>
+                  </Tooltip>
                 )}
               </div>
 
@@ -827,9 +861,14 @@ export function EventsPage({ initialEvents, initialSources }: EventsPageProps) {
                   <div>
                     <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Source</p>
                     <div className="flex items-center gap-2">
-                      {eventSource.logoUrl && (
-                        <img src={eventSource.logoUrl} alt="" className="w-6 h-6 object-contain" />
-                      )}
+                      <div
+                        className="w-6 h-6 rounded overflow-hidden flex-shrink-0"
+                        style={{ backgroundColor: eventSource.logoUrl ? undefined : stringToPastelColor(eventSource.name) }}
+                      >
+                        {eventSource.logoUrl && (
+                          <img src={eventSource.logoUrl} alt="" className="w-full h-full object-contain" />
+                        )}
+                      </div>
                       <span className="text-sm text-gray-700">{eventSource.name}</span>
                     </div>
                   </div>
@@ -898,6 +937,7 @@ export function EventsPage({ initialEvents, initialSources }: EventsPageProps) {
           </div>
         </div>
       )}
+
     </div>
   );
 }

@@ -9,6 +9,9 @@
     "lint": "eslint",
     "scrape": "tsx scripts/scrape.ts",
     "seed": "tsx scripts/seed.ts",
+    "db:add-logo-column": "tsx scripts/add-logo-data-column.ts",
+    "cache-logos": "tsx scripts/cache-logos.ts",
+    "update-times": "tsx scripts/update-event-times.ts",
     "postinstall": "npx playwright install chromium"
   },
   "dependencies": {

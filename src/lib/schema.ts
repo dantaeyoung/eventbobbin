@@ -12,6 +12,7 @@ export const sources = pgTable('sources', {
   scrapingStartedAt: timestamp('scraping_started_at', { withTimezone: true }),
   tags: text('tags'),
   logoUrl: text('logo_url'),
+  logoData: text('logo_data'), // base64 encoded image with data URI prefix
   city: text('city'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });

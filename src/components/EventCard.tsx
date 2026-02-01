@@ -4,6 +4,7 @@ import { useMemo } from 'react';
 import { format } from 'date-fns';
 import { Event, Source } from '@/lib/types';
 import { getTagColor } from '@/lib/tagColors';
+import { Tooltip } from '@/components/Tooltip';
 import {
   positionToSquiggleParams,
   TagSquigglePosition,
@@ -37,6 +38,31 @@ function generateGoogleCalendarUrl(event: Event): string {
 function seededRandom(seed: number): number {
   const x = Math.sin(seed) * 10000;
   return x - Math.floor(x);
+}
+
+// Generate a pastel color from a string
+function stringToPastelColor(str: string): string {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = str.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  // Generate HSL with high lightness for pastel
+  const h = Math.abs(hash % 360);
+  const s = 50 + (Math.abs((hash >> 8) % 30)); // 50-80% saturation
+  const l = 80 + (Math.abs((hash >> 16) % 10)); // 80-90% lightness
+  return `hsl(${h}, ${s}%, ${l}%)`;
+}
+
+// Calculate font size to fit text in a box
+function getFontSizeForBox(text: string, boxSize: number): number {
+  const len = text.length;
+  // Approximate: shorter text = bigger font
+  if (len <= 3) return Math.floor(boxSize * 0.35);
+  if (len <= 6) return Math.floor(boxSize * 0.25);
+  if (len <= 10) return Math.floor(boxSize * 0.18);
+  if (len <= 15) return Math.floor(boxSize * 0.14);
+  if (len <= 20) return Math.floor(boxSize * 0.11);
+  return Math.floor(boxSize * 0.09);
 }
 
 function generateWigglyPath(
@@ -165,25 +191,30 @@ export function EventCard({ event, source, squiggleSettings = {}, onClick, isSel
     return { x: totalX / count, y: totalY / count };
   }, [tags, squiggleSettings]);
 
-  const wigglyPath = generateWigglyPath(380, 125, event.id, squigglePosition);
+  // Add salt to seed when selected to shift the squiggle
+  const wigglyPath = generateWigglyPath(380, 125, isSelected ? event.id + '_selected' : event.id, squigglePosition);
 
   return (
     <div className="group relative">
       <div
         onClick={() => onClick?.(event)}
-        className={`block cursor-pointer ${isSelected ? 'ring-2 ring-blue-500 ring-offset-2 rounded-lg' : ''}`}
+        className="block cursor-pointer"
       >
         <div className="flex items-start gap-2 md:gap-3">
           {/* Left column: Time + Source logo + Source name (hidden on mobile) */}
           <div className="hidden md:flex flex-col items-end flex-shrink-0 w-[85px]">
             {/* Time - always takes space for consistent layout */}
             <p className="font-bold text-[#2e32ff] text-[12px] mb-1 h-[16px]">
-              {timeStr || ''}
+              {timeStr ? (
+                <Tooltip text="This time was scraped automatically - double check the source to be sure!">
+                  {timeStr}<span className="ml-0.5">?</span>
+                </Tooltip>
+              ) : ''}
             </p>
 
             {/* Source logo */}
             {source && (
-              <div className="w-[75px] h-[75px] bg-gray-100 overflow-hidden">
+              <div className="w-[75px] h-[75px] overflow-hidden">
                 {source.logoUrl ? (
                   <img
                     src={source.logoUrl}
@@ -192,15 +223,23 @@ export function EventCard({ event, source, squiggleSettings = {}, onClick, isSel
                     onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
                   />
                 ) : (
-                  <div className="w-full h-full flex items-center justify-center">
-                    <span className="text-[10px] text-gray-400 text-center px-1">{source.name.slice(0, 12)}</span>
+                  <div
+                    className="w-full h-full flex items-center justify-center overflow-hidden p-1"
+                    style={{ backgroundColor: stringToPastelColor(source.name) }}
+                  >
+                    <span
+                      className="text-gray-700 text-center font-bold leading-tight break-words"
+                      style={{ fontSize: `${getFontSizeForBox(source.name, 75)}px` }}
+                    >
+                      {source.name}
+                    </span>
                   </div>
                 )}
               </div>
             )}
 
-            {/* Source name */}
-            {source && (
+            {/* Source name - only show if there's a logo (otherwise it's in the square) */}
+            {source && source.logoUrl && (
               <p className="font-medium text-[#232223] text-[8px] text-right mt-1 leading-tight w-full">
                 {source.name}
               </p>
@@ -208,7 +247,7 @@ export function EventCard({ event, source, squiggleSettings = {}, onClick, isSel
           </div>
 
           {/* Squiggle box with content */}
-          <div className="relative w-full md:w-[380px] min-h-[110px] md:min-h-[125px] flex-shrink-0">
+          <div className="relative w-full md:w-[380px] flex-shrink-0">
             {/* Wiggly border SVG */}
             <svg
               className="absolute inset-0 w-full h-full pointer-events-none"
@@ -217,15 +256,18 @@ export function EventCard({ event, source, squiggleSettings = {}, onClick, isSel
             >
               <path
                 d={wigglyPath}
-                fill="white"
-                stroke="#d3d3d3"
+                fill={isSelected ? '#e0f2fe' : 'white'}
+                stroke={isSelected ? '#7dd3fc' : '#d3d3d3'}
                 strokeWidth="2"
                 strokeLinecap="round"
                 strokeLinejoin="round"
+                style={{
+                  transition: 'd 0.3s ease-in-out, fill 0.3s ease-in-out, stroke 0.3s ease-in-out'
+                }}
               />
             </svg>
 
-            <div className="relative p-4 md:p-6 flex gap-2 md:gap-3">
+            <div className="relative p-4 md:p-6 flex gap-2 md:gap-3 items-center min-h-[110px] md:min-h-[125px]">
               <div className="flex-1 min-w-0">
                 {/* Event title */}
                 <h3 className="font-bold text-black text-[14px] mb-2">
@@ -248,7 +290,13 @@ export function EventCard({ event, source, squiggleSettings = {}, onClick, isSel
 
                 {/* Source name and time on mobile */}
                 <div className="md:hidden flex items-center gap-2 mt-1 text-[11px] text-gray-500">
-                  {timeStr && <span className="font-bold text-[#2e32ff]">{timeStr}</span>}
+                  {timeStr && (
+                    <Tooltip text="This time was scraped automatically - double check the source to be sure!">
+                      <span className="font-bold text-[#2e32ff]">
+                        {timeStr}<span className="ml-0.5">?</span>
+                      </span>
+                    </Tooltip>
+                  )}
                   {source && <span>{source.name}</span>}
                 </div>
               </div>

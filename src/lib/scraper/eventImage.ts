@@ -4,6 +4,8 @@ export interface EventPageDetails {
   fullText?: string;
   price?: string;
   venue?: string;
+  startDate?: string;
+  endDate?: string;
   schemaData?: Record<string, unknown>;
 }
 
@@ -82,6 +84,13 @@ export async function fetchEventPageDetails(url: string): Promise<EventPageDetai
           const location = eventData.location as Record<string, unknown> | undefined;
           if (location?.name) {
             details.venue = String(location.name);
+          }
+          // Extract dates from schema - these are usually more accurate
+          if (eventData.startDate) {
+            details.startDate = String(eventData.startDate);
+          }
+          if (eventData.endDate) {
+            details.endDate = String(eventData.endDate);
           }
           break;
         }

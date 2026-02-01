@@ -137,7 +137,7 @@ export function Calendar({ selectedDate, onSelectDate, eventDates }: CalendarPro
   const lastClickTimeRef = useRef<number>(0);
   const startTimeRef = useRef<number>(performance.now());
 
-  const width = 220;
+  const width = 240;
   const height = 280;
 
   // Initialize points
@@ -287,7 +287,7 @@ export function Calendar({ selectedDate, onSelectDate, eventDates }: CalendarPro
       </svg>
 
       {/* Calendar content */}
-      <div className="relative p-3 h-full">
+      <div className="relative p-5 h-full">
         {/* Header */}
         <div className="flex items-center justify-between mb-3">
           <button
