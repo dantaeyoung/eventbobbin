@@ -18,14 +18,15 @@ function ManilaTab({
   href,
   isActive,
   hideOnMobile,
+  width,
 }: {
   label: string;
   href: string;
   isActive: boolean;
   hideOnMobile?: boolean;
+  width: number;
 }) {
-  const width = label.length * 10 + 32; // Approximate width based on label
-  const height = 32;
+  const height = 34; // Fixed height for all tabs
 
   return (
     <Link
@@ -36,25 +37,27 @@ function ManilaTab({
         ${isActive ? 'z-10' : 'z-0'}
       `}
       style={{
+        width,
+        height,
         marginRight: '-6px', // Overlap tabs slightly
-        marginBottom: isActive ? '-2px' : '0',
       }}
     >
       <svg
         width={width}
-        height={height + (isActive ? 2 : 0)}
-        viewBox={`0 0 ${width} ${height + (isActive ? 2 : 0)}`}
-        className="block"
+        height={height}
+        viewBox={`0 0 ${width} ${height}`}
+        className="absolute inset-0"
+        preserveAspectRatio="none"
       >
         {/* Tab shape */}
         <path
           d={`
-            M 0 ${height + (isActive ? 2 : 0)}
+            M 0 ${height}
             L 6 4
             Q 8 0 14 0
             L ${width - 14} 0
             Q ${width - 8} 0 ${width - 6} 4
-            L ${width} ${height + (isActive ? 2 : 0)}
+            L ${width} ${height}
             Z
           `}
           fill={isActive ? '#FFF8F0' : '#f5f5f4'}
@@ -65,9 +68,9 @@ function ManilaTab({
         {isActive && (
           <line
             x1="1"
-            y1={height + 1}
+            y1={height - 0.5}
             x2={width - 1}
-            y2={height + 1}
+            y2={height - 0.5}
             stroke="#FFF8F0"
             strokeWidth="3"
           />
@@ -78,9 +81,6 @@ function ManilaTab({
           absolute inset-0 flex items-center justify-center text-sm font-medium
           ${isActive ? 'text-gray-900' : 'text-gray-500 hover:text-gray-700'}
         `}
-        style={{
-          paddingBottom: isActive ? '2px' : '0',
-        }}
       >
         {label}
       </span>
@@ -88,11 +88,19 @@ function ManilaTab({
   );
 }
 
+// Fixed widths for each tab label to prevent layout shifts
+const TAB_WIDTHS: Record<string, number> = {
+  'Events': 72,
+  'Sources': 80,
+  'Squiggles': 90,
+  'Stats': 64,
+};
+
 export function TabNav({ tabs }: TabNavProps) {
   const pathname = usePathname();
 
   return (
-    <div className="flex items-end">
+    <div className="flex items-end h-[34px]">
       {tabs.map((tab) => {
         const isActive = pathname === tab.href ||
           (tab.href === '/' && pathname === '/');
@@ -104,6 +112,7 @@ export function TabNav({ tabs }: TabNavProps) {
             href={tab.href}
             isActive={isActive}
             hideOnMobile={tab.hideOnMobile}
+            width={TAB_WIDTHS[tab.label] || 80}
           />
         );
       })}

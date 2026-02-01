@@ -26,11 +26,11 @@ function generateSquigglePoints(
   width: number,
   height: number,
   seed: number,
-  wiggleAmount: number = 4,
+  wiggleAmount: number = 8,
   segmentLength: number = 20
 ): { x: number; y: number }[] {
   const points: { x: number; y: number }[] = [];
-  const margin = 6;
+  const margin = 8;
 
   // Seeded random
   const random = (i: number) => {
@@ -172,7 +172,7 @@ export function Calendar({ selectedDate, onSelectDate, eventDates }: CalendarPro
 
       // Generate slowly evolving target based on time
       const slowSeed = baseSeedRef.current + now * 0.0003; // Very slow evolution
-      const newTarget = generateSquigglePoints(width, height, slowSeed, 3, 20);
+      const newTarget = generateSquigglePoints(width, height, slowSeed, 6, 20);
 
       // Slowly interpolate current toward this new target
       const interpolated = interpolatePoints(
@@ -209,7 +209,7 @@ export function Calendar({ selectedDate, onSelectDate, eventDates }: CalendarPro
         width,
         height,
         baseSeedRef.current,
-        5, // Slightly more wiggle on transitions
+        10, // More wiggle on transitions
         20
       );
       transitionStartRef.current = now;
