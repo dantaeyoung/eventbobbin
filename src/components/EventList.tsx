@@ -6,8 +6,9 @@ import { SquiggleSettings } from '@/lib/squiggleSettings';
 interface EventListProps {
   events: Event[];
   sources: Source[];
-  onDeleteEvent?: (event: Event) => void;
   squiggleSettings?: SquiggleSettings;
+  onEventClick?: (event: Event) => void;
+  selectedEventId?: string | null;
 }
 
 // Group events by date
@@ -24,7 +25,7 @@ function groupEventsByDate(events: Event[]): Map<string, Event[]> {
   return groups;
 }
 
-export function EventList({ events, sources, onDeleteEvent, squiggleSettings }: EventListProps) {
+export function EventList({ events, sources, squiggleSettings, onEventClick, selectedEventId }: EventListProps) {
   const sourceMap = new Map(sources.map((s) => [s.id, s]));
 
   if (events.length === 0) {
@@ -59,8 +60,9 @@ export function EventList({ events, sources, onDeleteEvent, squiggleSettings }: 
                   key={event.id}
                   event={event}
                   source={sourceMap.get(event.sourceId)}
-                  onDelete={onDeleteEvent}
                   squiggleSettings={squiggleSettings}
+                  onClick={onEventClick}
+                  isSelected={selectedEventId === event.id}
                 />
               ))}
             </div>

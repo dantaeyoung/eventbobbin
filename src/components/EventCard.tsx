@@ -13,8 +13,9 @@ import {
 interface EventCardProps {
   event: Event;
   source?: Source;
-  onDelete?: (event: Event) => void;
   squiggleSettings?: SquiggleSettings;
+  onClick?: (event: Event) => void;
+  isSelected?: boolean;
 }
 
 function formatDateForGoogle(date: string): string {
@@ -58,34 +59,57 @@ function generateWigglyPath(
   }
 
   let seedCounter = numericSeed;
+  const frequency = 0.4; // Waves per unit distance
 
-  const wiggle = () => {
+  // Get wiggle amount at a specific position along perimeter
+  // For order: uses sine wave. For chaos: uses random.
+  const getWiggle = (perimeterPos: number) => {
     seedCounter++;
-    const baseWiggle = (seededRandom(seedCounter) - 0.5) * wiggleAmount * 2;
-    const chaosMultiplier = 1 + (seededRandom(seedCounter + 1000) - 0.5) * chaos * 1.5;
-    return baseWiggle * chaosMultiplier;
+
+    // Periodic component: sine wave based on position along perimeter
+    const periodicWiggle = Math.sin(perimeterPos * frequency + numericSeed * 0.1) * wiggleAmount;
+
+    // Random component: seeded random
+    const randomWiggle = (seededRandom(seedCounter) - 0.5) * wiggleAmount * 2;
+
+    // Blend based on chaos: 0 = pure sine, 1 = pure random
+    return periodicWiggle * (1 - chaos) + randomWiggle * chaos;
   };
 
   const allPoints: { x: number; y: number }[] = [];
   const margin = 8;
 
   const getSegmentStep = () => {
-    if (chaos < 0.2) return segmentLength;
-    const variation = (seededRandom(seedCounter++) - 0.5) * chaos * segmentLength * 0.6;
+    if (chaos < 0.3) return segmentLength;
+    const variation = (seededRandom(seedCounter++) - 0.5) * chaos * segmentLength * 0.5;
     return Math.max(8, segmentLength + variation);
   };
 
+  let perimeterPos = 0;
+
+  // Top edge: wiggle perpendicular (y direction only)
   for (let x = margin; x < width - margin; x += getSegmentStep()) {
-    allPoints.push({ x: x + wiggle(), y: margin + wiggle() });
+    const w = getWiggle(perimeterPos);
+    allPoints.push({ x: x, y: margin + w });
+    perimeterPos += segmentLength;
   }
+  // Right edge: wiggle perpendicular (x direction only)
   for (let y = margin; y < height - margin; y += getSegmentStep()) {
-    allPoints.push({ x: width - margin + wiggle(), y: y + wiggle() });
+    const w = getWiggle(perimeterPos);
+    allPoints.push({ x: width - margin + w, y: y });
+    perimeterPos += segmentLength;
   }
+  // Bottom edge: wiggle perpendicular (y direction only)
   for (let x = width - margin; x > margin; x -= getSegmentStep()) {
-    allPoints.push({ x: x + wiggle(), y: height - margin + wiggle() });
+    const w = getWiggle(perimeterPos);
+    allPoints.push({ x: x, y: height - margin + w });
+    perimeterPos += segmentLength;
   }
+  // Left edge: wiggle perpendicular (x direction only)
   for (let y = height - margin; y > margin; y -= getSegmentStep()) {
-    allPoints.push({ x: margin + wiggle(), y: y + wiggle() });
+    const w = getWiggle(perimeterPos);
+    allPoints.push({ x: margin + w, y: y });
+    perimeterPos += segmentLength;
   }
 
   if (allPoints.length < 3) return '';
@@ -111,7 +135,7 @@ function generateWigglyPath(
   return pathParts.join(' ');
 }
 
-export function EventCard({ event, source, onDelete, squiggleSettings = {} }: EventCardProps) {
+export function EventCard({ event, source, squiggleSettings = {}, onClick, isSelected = false }: EventCardProps) {
   const startDate = new Date(event.startDate);
   const hasTime = !event.startDate.includes('T00:00:00');
   const timeStr = hasTime ? format(startDate, 'h:mma').toLowerCase() : null;
@@ -145,46 +169,9 @@ export function EventCard({ event, source, onDelete, squiggleSettings = {} }: Ev
 
   return (
     <div className="group relative">
-      {/* Hover actions */}
-      <div className="absolute top-2 left-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-10">
-        <a
-          href={generateGoogleCalendarUrl(event)}
-          target="_blank"
-          rel="noopener noreferrer"
-          onClick={(e) => e.stopPropagation()}
-          className="w-6 h-6 bg-blue-100 text-blue-600 rounded-full hover:bg-blue-200 text-xs flex items-center justify-center"
-          title="Add to Google Calendar"
-        >
-          G
-        </a>
-        <a
-          href={`/api/events/${event.id}/ics`}
-          onClick={(e) => e.stopPropagation()}
-          className="w-6 h-6 bg-gray-100 text-gray-600 rounded-full hover:bg-gray-200 text-xs flex items-center justify-center"
-          title="Add to Calendar (.ics)"
-        >
-          📅
-        </a>
-        {onDelete && (
-          <button
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              onDelete(event);
-            }}
-            className="w-6 h-6 bg-red-100 text-red-600 rounded-full hover:bg-red-200 text-xs flex items-center justify-center"
-            title="Remove event"
-          >
-            ✕
-          </button>
-        )}
-      </div>
-
-      <a
-        href={event.url || '#'}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="block"
+      <div
+        onClick={() => onClick?.(event)}
+        className={`block cursor-pointer ${isSelected ? 'ring-2 ring-blue-500 ring-offset-2 rounded-lg' : ''}`}
       >
         <div className="flex items-start gap-2 md:gap-3">
           {/* Left column: Time + Source logo + Source name (hidden on mobile) */}
@@ -238,7 +225,7 @@ export function EventCard({ event, source, onDelete, squiggleSettings = {} }: Ev
               />
             </svg>
 
-            <div className="relative p-3 md:p-5 flex gap-2 md:gap-3">
+            <div className="relative p-4 md:p-6 flex gap-2 md:gap-3">
               <div className="flex-1 min-w-0">
                 {/* Event title */}
                 <h3 className="font-bold text-black text-[14px] mb-2">
@@ -302,7 +289,7 @@ export function EventCard({ event, source, onDelete, squiggleSettings = {} }: Ev
             )}
           </div>
         </div>
-      </a>
+      </div>
     </div>
   );
 }

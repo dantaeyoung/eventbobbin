@@ -37,6 +37,8 @@ function transformEvent(row: typeof events.$inferSelect): Event {
     createdAt: toISOStringRequired(row.createdAt),
     updatedAt: toISOStringRequired(row.updatedAt),
     scrapedAt: toISOStringRequired(row.scrapedAt),
+    // Ensure rawData is always a string (Drizzle may return it as object)
+    rawData: typeof row.rawData === 'string' ? row.rawData : JSON.stringify(row.rawData),
   };
 }
 

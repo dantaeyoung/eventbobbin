@@ -38,6 +38,7 @@ export function EventsPage({ initialEvents, initialSources }: EventsPageProps) {
   const [eventToDelete, setEventToDelete] = useState<Event | null>(null);
   const [selectedCity, setSelectedCity] = useState<string | null>(null);
   const [showMobileFilters, setShowMobileFilters] = useState(false);
+  const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
 
   // Get unique cities from sources
   const cities = useMemo(() => {
@@ -347,9 +348,153 @@ export function EventsPage({ initialEvents, initialSources }: EventsPageProps) {
             </div>
 
             <div className="flex-1 overflow-y-auto">
-              <EventList events={events} sources={sources} onDeleteEvent={setEventToDelete} squiggleSettings={squiggleSettings} />
+              <EventList
+                events={events}
+                sources={sources}
+                squiggleSettings={squiggleSettings}
+                onEventClick={setSelectedEvent}
+                selectedEventId={selectedEvent?.id}
+              />
             </div>
           </div>
+
+          {/* Right: Event Detail Panel */}
+          {selectedEvent && (
+            <div className="hidden md:flex flex-col flex-shrink-0 w-[350px] h-full bg-white border-l border-gray-200">
+              <div className="flex items-center justify-between p-4 border-b border-gray-200">
+                <h2 className="font-bold text-gray-900">Event Details</h2>
+                <button
+                  onClick={() => setSelectedEvent(null)}
+                  className="text-gray-500 hover:text-gray-700"
+                >
+                  ✕
+                </button>
+              </div>
+              <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                {/* Event Image */}
+                {selectedEvent.imageUrl && (
+                  <div className="w-full bg-gray-100 rounded-lg overflow-hidden">
+                    <img
+                      src={selectedEvent.imageUrl}
+                      alt=""
+                      className="w-full h-auto"
+                    />
+                  </div>
+                )}
+
+                {/* Title */}
+                <h3 className="text-lg font-bold text-gray-900">{selectedEvent.title}</h3>
+
+                {/* Date & Time */}
+                <div className="space-y-1">
+                  <p className="text-sm font-medium text-gray-700">
+                    {format(new Date(selectedEvent.startDate), 'EEEE, MMMM d, yyyy')}
+                  </p>
+                  {!selectedEvent.startDate.includes('T00:00:00') && (
+                    <p className="text-sm text-blue-600 font-medium">
+                      {format(new Date(selectedEvent.startDate), 'h:mm a')}
+                      {selectedEvent.endDate && !selectedEvent.endDate.includes('T00:00:00') && (
+                        <> – {format(new Date(selectedEvent.endDate), 'h:mm a')}</>
+                      )}
+                    </p>
+                  )}
+                </div>
+
+                {/* Location */}
+                {selectedEvent.location && (
+                  <div>
+                    <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Location</p>
+                    <p className="text-sm text-gray-700">{selectedEvent.location}</p>
+                  </div>
+                )}
+
+                {/* Description */}
+                {selectedEvent.description && (
+                  <div>
+                    <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Description</p>
+                    <p className="text-sm text-gray-700 whitespace-pre-wrap">{selectedEvent.description}</p>
+                  </div>
+                )}
+
+                {/* Source */}
+                {(() => {
+                  const eventSource = sources.find(s => s.id === selectedEvent.sourceId);
+                  return eventSource && (
+                    <div>
+                      <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Source</p>
+                      <div className="flex items-center gap-2">
+                        {eventSource.logoUrl && (
+                          <img src={eventSource.logoUrl} alt="" className="w-6 h-6 object-contain" />
+                        )}
+                        <span className="text-sm text-gray-700">{eventSource.name}</span>
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                {/* Actions */}
+                <div className="space-y-2 pt-2">
+                  <div className="flex gap-2">
+                    {selectedEvent.url && (
+                      <a
+                        href={selectedEvent.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex-1 py-2 px-4 bg-blue-600 text-white text-sm font-medium rounded-md text-center hover:bg-blue-700"
+                      >
+                        View Original
+                      </a>
+                    )}
+                  </div>
+                  <div className="flex gap-2">
+                    <a
+                      href={`https://calendar.google.com/calendar/render?${new URLSearchParams({
+                        action: 'TEMPLATE',
+                        text: selectedEvent.title,
+                        dates: `${selectedEvent.startDate.replace(/[-:]/g, '').split('.')[0]}/${(selectedEvent.endDate || selectedEvent.startDate).replace(/[-:]/g, '').split('.')[0]}`,
+                        ...(selectedEvent.location && { location: selectedEvent.location }),
+                        ...(selectedEvent.description && { details: selectedEvent.description + (selectedEvent.url ? '\n\n' + selectedEvent.url : '') }),
+                      }).toString()}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex-1 py-2 px-4 bg-gray-100 text-gray-700 text-sm font-medium rounded-md text-center hover:bg-gray-200"
+                    >
+                      Add to Google Calendar
+                    </a>
+                    <a
+                      href={`/api/events/${selectedEvent.id}/ics`}
+                      className="py-2 px-4 bg-gray-100 text-gray-700 text-sm font-medium rounded-md hover:bg-gray-200"
+                    >
+                      📅 .ics
+                    </a>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setEventToDelete(selectedEvent);
+                      setSelectedEvent(null);
+                    }}
+                    className="w-full py-2 px-4 bg-red-50 text-red-600 text-sm font-medium rounded-md hover:bg-red-100"
+                  >
+                    Delete Event
+                  </button>
+                </div>
+
+                {/* Raw Data (collapsed by default) */}
+                {selectedEvent.rawData && (
+                  <details className="mt-4">
+                    <summary className="text-xs text-gray-500 cursor-pointer hover:text-gray-700">
+                      View Raw Scraped Data
+                    </summary>
+                    <pre className="mt-2 p-2 bg-gray-50 rounded text-xs text-gray-600 overflow-x-auto whitespace-pre-wrap">
+                      {typeof selectedEvent.rawData === 'string'
+                        ? selectedEvent.rawData
+                        : JSON.stringify(selectedEvent.rawData, null, 2)}
+                    </pre>
+                  </details>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       </main>
 
@@ -559,6 +704,144 @@ export function EventsPage({ initialEvents, initialSources }: EventsPageProps) {
                   Clear All Filters
                 </button>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Mobile Event Detail Modal */}
+      {selectedEvent && (
+        <div className="fixed inset-0 bg-black/50 flex items-end z-50 md:hidden">
+          <div className="bg-white rounded-t-2xl w-full max-h-[85vh] overflow-hidden flex flex-col">
+            <div className="flex items-center justify-between p-4 border-b flex-shrink-0">
+              <h2 className="text-lg font-bold text-gray-900">Event Details</h2>
+              <button
+                onClick={() => setSelectedEvent(null)}
+                className="text-gray-500 hover:text-gray-700 text-xl"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+              {/* Event Image */}
+              {selectedEvent.imageUrl && (
+                <div className="w-full bg-gray-100 rounded-lg overflow-hidden">
+                  <img
+                    src={selectedEvent.imageUrl}
+                    alt=""
+                    className="w-full h-auto"
+                  />
+                </div>
+              )}
+
+              {/* Title */}
+              <h3 className="text-lg font-bold text-gray-900">{selectedEvent.title}</h3>
+
+              {/* Date & Time */}
+              <div className="space-y-1">
+                <p className="text-sm font-medium text-gray-700">
+                  {format(new Date(selectedEvent.startDate), 'EEEE, MMMM d, yyyy')}
+                </p>
+                {!selectedEvent.startDate.includes('T00:00:00') && (
+                  <p className="text-sm text-blue-600 font-medium">
+                    {format(new Date(selectedEvent.startDate), 'h:mm a')}
+                    {selectedEvent.endDate && !selectedEvent.endDate.includes('T00:00:00') && (
+                      <> – {format(new Date(selectedEvent.endDate), 'h:mm a')}</>
+                    )}
+                  </p>
+                )}
+              </div>
+
+              {/* Location */}
+              {selectedEvent.location && (
+                <div>
+                  <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Location</p>
+                  <p className="text-sm text-gray-700">{selectedEvent.location}</p>
+                </div>
+              )}
+
+              {/* Description */}
+              {selectedEvent.description && (
+                <div>
+                  <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Description</p>
+                  <p className="text-sm text-gray-700 whitespace-pre-wrap">{selectedEvent.description}</p>
+                </div>
+              )}
+
+              {/* Source */}
+              {(() => {
+                const eventSource = sources.find(s => s.id === selectedEvent.sourceId);
+                return eventSource && (
+                  <div>
+                    <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Source</p>
+                    <div className="flex items-center gap-2">
+                      {eventSource.logoUrl && (
+                        <img src={eventSource.logoUrl} alt="" className="w-6 h-6 object-contain" />
+                      )}
+                      <span className="text-sm text-gray-700">{eventSource.name}</span>
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* Raw Data (collapsed by default) */}
+              {selectedEvent.rawData && (
+                <details className="mt-4">
+                  <summary className="text-xs text-gray-500 cursor-pointer hover:text-gray-700">
+                    View Raw Scraped Data
+                  </summary>
+                  <pre className="mt-2 p-2 bg-gray-50 rounded text-xs text-gray-600 overflow-x-auto whitespace-pre-wrap">
+                    {typeof selectedEvent.rawData === 'string'
+                      ? selectedEvent.rawData
+                      : JSON.stringify(selectedEvent.rawData, null, 2)}
+                  </pre>
+                </details>
+              )}
+            </div>
+
+            {/* Actions */}
+            <div className="p-4 border-t space-y-2 flex-shrink-0">
+              {selectedEvent.url && (
+                <a
+                  href={selectedEvent.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block w-full py-3 bg-blue-600 text-white text-sm font-medium rounded-md text-center hover:bg-blue-700"
+                >
+                  View Original
+                </a>
+              )}
+              <div className="flex gap-2">
+                <a
+                  href={`https://calendar.google.com/calendar/render?${new URLSearchParams({
+                    action: 'TEMPLATE',
+                    text: selectedEvent.title,
+                    dates: `${selectedEvent.startDate.replace(/[-:]/g, '').split('.')[0]}/${(selectedEvent.endDate || selectedEvent.startDate).replace(/[-:]/g, '').split('.')[0]}`,
+                    ...(selectedEvent.location && { location: selectedEvent.location }),
+                    ...(selectedEvent.description && { details: selectedEvent.description + (selectedEvent.url ? '\n\n' + selectedEvent.url : '') }),
+                  }).toString()}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex-1 py-2 px-4 bg-gray-100 text-gray-700 text-sm font-medium rounded-md text-center hover:bg-gray-200"
+                >
+                  Google Calendar
+                </a>
+                <a
+                  href={`/api/events/${selectedEvent.id}/ics`}
+                  className="py-2 px-4 bg-gray-100 text-gray-700 text-sm font-medium rounded-md hover:bg-gray-200"
+                >
+                  📅
+                </a>
+              </div>
+              <button
+                onClick={() => {
+                  setEventToDelete(selectedEvent);
+                  setSelectedEvent(null);
+                }}
+                className="w-full py-2 px-4 bg-red-50 text-red-600 text-sm font-medium rounded-md hover:bg-red-100"
+              >
+                Delete Event
+              </button>
             </div>
           </div>
         </div>
