@@ -270,6 +270,21 @@ export async function getLLMStats(): Promise<{
   };
 }
 
+export async function getEventCountsBySource(): Promise<Record<string, number>> {
+  const rows = await db.select({
+    sourceId: events.sourceId,
+    count: count(),
+  })
+    .from(events)
+    .groupBy(events.sourceId);
+
+  const result: Record<string, number> = {};
+  for (const row of rows) {
+    result[row.sourceId] = row.count;
+  }
+  return result;
+}
+
 export async function getEventStats(): Promise<{
   totalEvents: number;
   totalSources: number;

@@ -12,6 +12,7 @@ export interface Source {
   logoUrl: string | null; // URL to the source's logo
   city: string | null; // e.g., "NYC", "LA"
   createdAt: string;
+  eventCount?: number; // Number of events from this source
 }
 
 export interface Event {

@@ -9,6 +9,11 @@ nvm use 20
 
 git pull origin main
 npm install
+
+# Ensure Playwright browsers are installed
+npx playwright install chromium
+npx playwright install-deps chromium
+
 npm run build
 pm2 restart eventbobbin
 

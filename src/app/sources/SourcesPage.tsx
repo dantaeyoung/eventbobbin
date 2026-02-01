@@ -509,9 +509,12 @@ export function SourcesPage({ initialSources }: SourcesPageProps) {
                         {source.url}
                       </a>
                       <div className="text-sm text-gray-500 mt-1">
+                        <span className="mr-2">
+                          {source.eventCount ?? 0} event{source.eventCount !== 1 ? 's' : ''}
+                        </span>
                         {source.lastScrapedAt
-                          ? `Last scraped: ${format(new Date(source.lastScrapedAt), 'MMM d, h:mm a')}`
-                          : 'Never scraped'}
+                          ? `· Last scraped: ${format(new Date(source.lastScrapedAt), 'MMM d, h:mm a')}`
+                          : '· Never scraped'}
                       </div>
                       {/* Tags display */}
                       {source.tags && editingId !== source.id && (

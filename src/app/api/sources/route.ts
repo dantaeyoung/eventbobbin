@@ -1,10 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { randomUUID } from 'crypto';
-import { getAllSources, createSource } from '@/lib/db';
+import { getAllSources, createSource, getEventCountsBySource } from '@/lib/db';
 
 export async function GET() {
-  const sources = await getAllSources();
-  return NextResponse.json(sources);
+  const [sources, eventCounts] = await Promise.all([
+    getAllSources(),
+    getEventCountsBySource(),
+  ]);
+
+  // Attach event counts to each source
+  const sourcesWithCounts = sources.map((source) => ({
+    ...source,
+    eventCount: eventCounts[source.id] || 0,
+  }));
+
+  return NextResponse.json(sourcesWithCounts);
 }
 
 export async function POST(request: NextRequest) {
