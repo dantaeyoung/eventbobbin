@@ -189,12 +189,10 @@ export function EventCard({ event, source, onDelete, squiggleSettings = {} }: Ev
         <div className="flex items-start gap-2 md:gap-3">
           {/* Left column: Time + Source logo + Source name (hidden on mobile) */}
           <div className="hidden md:flex flex-col items-end flex-shrink-0 w-[85px]">
-            {/* Time */}
-            {timeStr && (
-              <p className="font-bold text-[#2e32ff] text-[12px] mb-1">
-                {timeStr}
-              </p>
-            )}
+            {/* Time - always takes space for consistent layout */}
+            <p className="font-bold text-[#2e32ff] text-[12px] mb-1 h-[16px]">
+              {timeStr || ''}
+            </p>
 
             {/* Source logo */}
             {source && (
