@@ -45,8 +45,29 @@ export function extractShortcode(url: string): string | null {
 }
 
 // Check if URL is an Instagram post/reel
-export function isInstagramUrl(url: string): boolean {
+export function isInstagramPostUrl(url: string): boolean {
   return /instagram\.com\/(p|reel|reels)\//.test(url);
+}
+
+// Check if URL is an Instagram profile
+export function isInstagramProfileUrl(url: string): boolean {
+  // Profile URLs are like instagram.com/username or instagram.com/username/
+  // But NOT /p/, /reel/, /reels/, /explore/, /accounts/, etc.
+  const isInstagram = /instagram\.com\//.test(url);
+  const isSpecialPage = /instagram\.com\/(p|reel|reels|explore|accounts|stories|direct|tv)\//.test(url);
+  const hasUsername = /instagram\.com\/([a-zA-Z0-9._]+)\/?(\?.*)?$/.test(url);
+  return isInstagram && !isSpecialPage && hasUsername;
+}
+
+// Check if URL is any Instagram URL (post or profile)
+export function isInstagramUrl(url: string): boolean {
+  return isInstagramPostUrl(url) || isInstagramProfileUrl(url);
+}
+
+// Extract username from Instagram profile URL
+export function extractUsername(url: string): string | null {
+  const match = url.match(/instagram\.com\/([a-zA-Z0-9._]+)\/?(\?.*)?$/);
+  return match ? match[1] : null;
 }
 
 /**
@@ -483,4 +504,134 @@ export async function extractEventFromInstagram(url: string): Promise<{
     rawData: JSON.stringify(postData, null, 2),
     instagramData: postData,
   };
+}
+
+/**
+ * Fetch recent posts from an Instagram profile using Puppeteer
+ * This is needed because Instagram profiles are fully client-side rendered
+ */
+export async function fetchInstagramProfilePosts(
+  url: string,
+  renderPageFn?: (url: string) => Promise<{ text: string; links: { text: string; href: string }[]; hash: string }>
+): Promise<InstagramPostData[]> {
+  const username = extractUsername(url);
+  if (!username) {
+    console.error('Could not extract username from URL:', url);
+    return [];
+  }
+
+  console.log(`  Fetching Instagram profile: @${username}`);
+
+  try {
+    let html = '';
+
+    // If a render function is provided (Puppeteer), use it
+    if (renderPageFn) {
+      console.log('  Using Puppeteer to render profile page...');
+      const profileUrl = `https://www.instagram.com/${username}/`;
+      const result = await renderPageFn(profileUrl);
+      html = result.text;
+    } else {
+      // Fallback to simple fetch (may not work for most profiles)
+      const profileUrl = `https://www.instagram.com/${username}/`;
+      const response = await fetch(profileUrl, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+          'Accept-Language': 'en-US,en;q=0.9',
+        },
+      });
+
+      if (!response.ok) {
+        console.error(`  Profile fetch failed: ${response.status}`);
+        return [];
+      }
+
+      html = await response.text();
+    }
+
+    const posts: InstagramPostData[] = [];
+    const shortcodes = new Set<string>();
+
+    // Look for shortcodes in the rendered HTML
+    // Instagram shortcodes are typically 11 characters
+    const patterns = [
+      /\/p\/([A-Za-z0-9_-]{11})/g,
+      /\/reel\/([A-Za-z0-9_-]{11})/g,
+      /"shortcode"\s*:\s*"([A-Za-z0-9_-]{11})"/g,
+      /"code"\s*:\s*"([A-Za-z0-9_-]{11})"/g,
+    ];
+
+    for (const pattern of patterns) {
+      const matches = html.matchAll(pattern);
+      for (const match of matches) {
+        shortcodes.add(match[1]);
+      }
+    }
+
+    console.log(`  Found ${shortcodes.size} unique shortcodes`);
+
+    // Limit to 12 posts max
+    const shortcodeArray = Array.from(shortcodes).slice(0, 12);
+
+    if (shortcodeArray.length === 0) {
+      console.log('  No posts found in profile');
+      return [];
+    }
+
+    console.log(`  Fetching details for ${shortcodeArray.length} posts...`);
+
+    // Fetch each post's details
+    for (const shortcode of shortcodeArray) {
+      const postUrl = `https://www.instagram.com/p/${shortcode}/`;
+      const postData = await fetchInstagramPost(postUrl);
+      if (postData) {
+        posts.push(postData);
+      }
+      // Small delay to avoid rate limiting
+      await new Promise(resolve => setTimeout(resolve, 300));
+    }
+
+    console.log(`  Successfully fetched ${posts.length} posts`);
+    return posts;
+  } catch (error) {
+    console.error('  Profile fetch error:', error);
+    return [];
+  }
+}
+
+/**
+ * Extract events from an Instagram profile's recent posts
+ */
+export async function extractEventsFromInstagramProfile(
+  url: string,
+  renderPageFn?: (url: string) => Promise<{ text: string; links: { text: string; href: string }[]; hash: string }>
+): Promise<Array<{
+  title: string;
+  description: string;
+  imageUrl?: string;
+  location?: string;
+  url: string;
+  rawData: string;
+  timestamp: number;
+}>> {
+  const posts = await fetchInstagramProfilePosts(url, renderPageFn);
+
+  return posts.map(post => {
+    const captionLines = post.caption.split('\n').filter(line => line.trim());
+    let title = captionLines[0] || `Post by @${post.ownerUsername}`;
+    if (title.length > 100) {
+      title = title.substring(0, 97) + '...';
+    }
+
+    return {
+      title,
+      description: post.caption,
+      imageUrl: post.displayUrl,
+      location: post.location?.name,
+      url: `https://www.instagram.com/p/${post.shortcode}/`,
+      rawData: JSON.stringify(post, null, 2),
+      timestamp: post.timestamp,
+    };
+  });
 }

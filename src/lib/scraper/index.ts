@@ -9,7 +9,7 @@ import { renderPage, closeBrowser } from './browser';
 import { extractEvents } from './extract';
 import { detectLogo, cacheLogoImage } from './logo';
 import { fetchEventPageDetails } from './eventImage';
-import { isInstagramUrl, extractEventFromInstagram } from './instagram';
+import { isInstagramUrl, isInstagramPostUrl, isInstagramProfileUrl, extractEventFromInstagram, extractEventsFromInstagramProfile } from './instagram';
 
 /**
  * Parse various date formats from JSON-LD schema into ISO string
@@ -55,38 +55,84 @@ export async function scrapeSource(
   console.log(`Scraping: ${source.name} (${source.url})${force ? ' [FORCE]' : ''}`);
 
   try {
-    // Handle Instagram posts specially
+    // Handle Instagram URLs specially
     if (isInstagramUrl(source.url)) {
       console.log('  Detected Instagram URL, using Instagram scraper');
-      const instagramEvent = await extractEventFromInstagram(source.url);
 
-      if (!instagramEvent) {
-        return { success: false, eventsFound: 0, skipped: false, error: 'Failed to extract Instagram post' };
+      // Handle Instagram profile pages (multiple posts)
+      if (isInstagramProfileUrl(source.url)) {
+        console.log('  Scraping Instagram profile for recent posts...');
+        const profileEvents = await extractEventsFromInstagramProfile(source.url, renderPage);
+
+        if (profileEvents.length === 0) {
+          return { success: false, eventsFound: 0, skipped: false, error: 'Failed to extract posts from Instagram profile' };
+        }
+
+        const now = new Date().toISOString();
+        let eventsCreated = 0;
+
+        for (const event of profileEvents) {
+          const eventId = randomUUID();
+          // Use the post timestamp if available, otherwise current date
+          const startDate = event.timestamp
+            ? new Date(event.timestamp * 1000).toISOString()
+            : now;
+
+          await upsertEvent({
+            id: eventId,
+            sourceId: source.id,
+            title: event.title,
+            description: event.description,
+            startDate,
+            endDate: null,
+            url: event.url,
+            imageUrl: event.imageUrl || null,
+            location: event.location || null,
+            rawData: event.rawData,
+            scrapedAt: now,
+          });
+          eventsCreated++;
+        }
+
+        await updateSource(source.id, {
+          lastScrapedAt: now,
+        });
+
+        console.log(`  Created ${eventsCreated} events from Instagram profile`);
+        return { success: true, eventsFound: eventsCreated, skipped: false };
       }
 
-      // Create event from Instagram data
-      const eventId = randomUUID();
-      const now = new Date().toISOString();
-      await upsertEvent({
-        id: eventId,
-        sourceId: source.id,
-        title: instagramEvent.title,
-        description: instagramEvent.description,
-        startDate: now, // Instagram posts don't have event dates, use current date
-        endDate: null,
-        url: source.url,
-        imageUrl: instagramEvent.imageUrl || null,
-        location: instagramEvent.location || null,
-        rawData: instagramEvent.rawData,
-        scrapedAt: now,
-      });
+      // Handle single Instagram post
+      if (isInstagramPostUrl(source.url)) {
+        const instagramEvent = await extractEventFromInstagram(source.url);
 
-      await updateSource(source.id, {
-        lastScrapedAt: new Date().toISOString(),
-      });
+        if (!instagramEvent) {
+          return { success: false, eventsFound: 0, skipped: false, error: 'Failed to extract Instagram post' };
+        }
 
-      console.log(`  Created event from Instagram post: ${instagramEvent.title.substring(0, 50)}...`);
-      return { success: true, eventsFound: 1, skipped: false };
+        const eventId = randomUUID();
+        const now = new Date().toISOString();
+        await upsertEvent({
+          id: eventId,
+          sourceId: source.id,
+          title: instagramEvent.title,
+          description: instagramEvent.description,
+          startDate: now,
+          endDate: null,
+          url: source.url,
+          imageUrl: instagramEvent.imageUrl || null,
+          location: instagramEvent.location || null,
+          rawData: instagramEvent.rawData,
+          scrapedAt: now,
+        });
+
+        await updateSource(source.id, {
+          lastScrapedAt: now,
+        });
+
+        console.log(`  Created event from Instagram post: ${instagramEvent.title.substring(0, 50)}...`);
+        return { success: true, eventsFound: 1, skipped: false };
+      }
     }
 
     // Render the page
