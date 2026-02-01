@@ -571,11 +571,18 @@ export async function fetchInstagramProfilePosts(
 
     console.log(`  Found ${shortcodes.size} unique shortcodes`);
 
+    // Check if we hit a login wall
+    if (shortcodes.size === 0 && (html.includes('Log into Instagram') || html.includes('Log in') && html.length < 2000)) {
+      console.log('  Instagram requires login to view this profile');
+      console.log('  TIP: Add individual post URLs instead of profile URLs');
+      return [];
+    }
+
     // Limit to 12 posts max
     const shortcodeArray = Array.from(shortcodes).slice(0, 12);
 
     if (shortcodeArray.length === 0) {
-      console.log('  No posts found in profile');
+      console.log('  No posts found in profile (page may require authentication)');
       return [];
     }
 

@@ -65,7 +65,12 @@ export async function scrapeSource(
         const profileEvents = await extractEventsFromInstagramProfile(source.url, renderPage);
 
         if (profileEvents.length === 0) {
-          return { success: false, eventsFound: 0, skipped: false, error: 'Failed to extract posts from Instagram profile' };
+          return {
+            success: false,
+            eventsFound: 0,
+            skipped: false,
+            error: 'Instagram requires login to view profiles. Try adding individual post URLs (instagram.com/p/...) instead.'
+          };
         }
 
         const now = new Date().toISOString();
