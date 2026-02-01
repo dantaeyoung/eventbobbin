@@ -203,7 +203,7 @@ export function SquigglesPage({ initialSources }: SquigglesPageProps) {
   return (
     <div className="min-h-screen bg-[#FFF8F0]">
       <header className="bg-white border-b border-gray-200">
-        <div className="max-w-4xl mx-auto px-4">
+        <div className="max-w-6xl mx-auto px-4">
           <div className="flex items-end justify-between pt-3">
             <div className="flex items-end gap-4">
               <h1 className="text-xl font-bold text-gray-900 pb-2">EventBobbin</h1>

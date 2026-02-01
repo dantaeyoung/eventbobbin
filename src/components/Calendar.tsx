@@ -127,12 +127,15 @@ export function Calendar({ selectedDate, onSelectDate, eventDates }: CalendarPro
 
   const animationRef = useRef<number | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const currentPointsRef = useRef<{ x: number; y: number }[]>([]);
+  const basePointsRef = useRef<{ x: number; y: number }[]>([]);
+  const displayPointsRef = useRef<{ x: number; y: number }[]>([]);
   const targetPointsRef = useRef<{ x: number; y: number }[]>([]);
   const transitionStartRef = useRef<number>(0);
   const transitionDurationRef = useRef<number>(0);
+  const transitionFromRef = useRef<{ x: number; y: number }[]>([]);
   const baseSeedRef = useRef<number>(Date.now());
   const lastClickTimeRef = useRef<number>(0);
+  const startTimeRef = useRef<number>(performance.now());
 
   const width = 220;
   const height = 280;
@@ -140,14 +143,22 @@ export function Calendar({ selectedDate, onSelectDate, eventDates }: CalendarPro
   // Initialize points
   useEffect(() => {
     const initialPoints = generateSquigglePoints(width, height, baseSeedRef.current);
-    currentPointsRef.current = initialPoints;
-    targetPointsRef.current = initialPoints;
+    basePointsRef.current = initialPoints;
+    displayPointsRef.current = initialPoints.map(p => ({ ...p }));
+    targetPointsRef.current = initialPoints.map(p => ({ ...p }));
     setPath(pointsToPath(initialPoints));
+    startTimeRef.current = performance.now();
   }, []);
 
-  // Animation loop
+  // Animation loop - continuous undulation using time-based offsets
   const animate = useCallback(() => {
     const now = performance.now();
+    const basePoints = basePointsRef.current;
+
+    if (basePoints.length === 0) {
+      animationRef.current = requestAnimationFrame(animate);
+      return;
+    }
 
     // Check if we're in a fast transition (after a click)
     const timeSinceTransitionStart = now - transitionStartRef.current;
@@ -157,32 +168,44 @@ export function Calendar({ selectedDate, onSelectDate, eventDates }: CalendarPro
       // Fast transition in progress
       const t = easeInOutCubic(timeSinceTransitionStart / transitionDuration);
       const interpolated = interpolatePoints(
-        currentPointsRef.current,
+        transitionFromRef.current,
         targetPointsRef.current,
         t
       );
+      displayPointsRef.current = interpolated;
       setPath(pointsToPath(interpolated));
     } else {
-      // Slow undulation
+      // Transition finished - update base points
       if (transitionDuration > 0) {
-        // Transition just finished - update current points
-        currentPointsRef.current = [...targetPointsRef.current];
+        basePointsRef.current = targetPointsRef.current.map(p => ({ ...p }));
         transitionDurationRef.current = 0;
       }
 
-      // Generate slowly evolving target based on time
-      const slowSeed = baseSeedRef.current + now * 0.0003; // Very slow evolution
-      const newTarget = generateSquigglePoints(width, height, slowSeed, 6, 20);
+      // Slow continuous undulation using sinusoidal time-based offsets
+      const time = (now - startTimeRef.current) * 0.001; // Convert to seconds
+      const undulatedPoints = basePointsRef.current.map((point, i) => {
+        // Each point gets unique phase offsets based on its index
+        const phaseX = i * 0.7;
+        const phaseY = i * 0.9 + 100;
 
-      // Slowly interpolate current toward this new target
-      const interpolated = interpolatePoints(
-        currentPointsRef.current,
-        newTarget,
-        0.02 // Very gradual movement
-      );
+        // Multiple overlapping sine waves for organic movement
+        const offsetX =
+          Math.sin(time * 0.5 + phaseX) * 2 +
+          Math.sin(time * 0.3 + phaseX * 1.3) * 1.5 +
+          Math.sin(time * 0.7 + phaseX * 0.7) * 1;
+        const offsetY =
+          Math.sin(time * 0.4 + phaseY) * 2 +
+          Math.sin(time * 0.25 + phaseY * 1.2) * 1.5 +
+          Math.sin(time * 0.6 + phaseY * 0.8) * 1;
 
-      currentPointsRef.current = interpolated;
-      setPath(pointsToPath(interpolated));
+        return {
+          x: point.x + offsetX,
+          y: point.y + offsetY,
+        };
+      });
+
+      displayPointsRef.current = undulatedPoints;
+      setPath(pointsToPath(undulatedPoints));
     }
 
     animationRef.current = requestAnimationFrame(animate);
@@ -203,6 +226,9 @@ export function Calendar({ selectedDate, onSelectDate, eventDates }: CalendarPro
     const now = performance.now();
     // Avoid triggering on initial mount
     if (lastClickTimeRef.current > 0) {
+      // Save current display state as transition start
+      transitionFromRef.current = displayPointsRef.current.map(p => ({ ...p }));
+
       // Generate a new random target
       baseSeedRef.current = Date.now() + Math.random() * 1000;
       targetPointsRef.current = generateSquigglePoints(
