@@ -3,7 +3,7 @@ import { randomUUID } from 'crypto';
 import { getAllSources, createSource } from '@/lib/db';
 
 export async function GET() {
-  const sources = getAllSources();
+  const sources = await getAllSources();
   return NextResponse.json(sources);
 }
 
@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const source = createSource({
+    const source = await createSource({
       id: randomUUID(),
       name: body.name,
       url: body.url,
@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
     });
     return NextResponse.json(source, { status: 201 });
   } catch (error) {
-    if (error instanceof Error && error.message.includes('UNIQUE')) {
+    if (error instanceof Error && (error.message.includes('UNIQUE') || error.message.includes('duplicate key'))) {
       return NextResponse.json(
         { error: 'A source with this URL already exists' },
         { status: 409 }

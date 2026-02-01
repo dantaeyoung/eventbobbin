@@ -6,7 +6,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  const source = getSourceById(id);
+  const source = await getSourceById(id);
   if (!source) {
     return NextResponse.json({ error: 'Source not found' }, { status: 404 });
   }
@@ -20,7 +20,7 @@ export async function PUT(
   const { id } = await params;
   const body = await request.json();
 
-  const source = updateSource(id, {
+  const source = await updateSource(id, {
     name: body.name,
     url: body.url,
     enabled: body.enabled,
@@ -42,7 +42,7 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  const deleted = deleteSource(id);
+  const deleted = await deleteSource(id);
   if (!deleted) {
     return NextResponse.json({ error: 'Source not found' }, { status: 404 });
   }

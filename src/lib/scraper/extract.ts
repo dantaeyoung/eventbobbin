@@ -39,7 +39,7 @@ export async function extractEvents(
   if (usage) {
     const pricing = PRICING[model as keyof typeof PRICING] || { input: 0, output: 0 };
     const cost = (usage.prompt_tokens * pricing.input) + (usage.completion_tokens * pricing.output);
-    recordLLMUsage({
+    await recordLLMUsage({
       sourceId: sourceId || null,
       model,
       promptTokens: usage.prompt_tokens,

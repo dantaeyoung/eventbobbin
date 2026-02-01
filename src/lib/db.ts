@@ -1,297 +1,229 @@
-import Database from 'better-sqlite3';
-import path from 'path';
+import { neon, Pool } from '@neondatabase/serverless';
 import { Source, Event } from './types';
 
-const dbPath = path.join(process.cwd(), 'data', 'events.db');
-const db = new Database(dbPath);
+const sql = neon(process.env.DATABASE_URL!);
+const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 
-// Enable WAL mode for better concurrent access
-db.pragma('journal_mode = WAL');
-
-// Initialize schema
-db.exec(`
-  CREATE TABLE IF NOT EXISTS sources (
-    id TEXT PRIMARY KEY,
-    name TEXT NOT NULL,
-    url TEXT NOT NULL UNIQUE,
-    enabled INTEGER NOT NULL DEFAULT 1,
-    lastScrapedAt TEXT,
-    lastContentHash TEXT,
-    scrapeIntervalHours INTEGER NOT NULL DEFAULT 24,
-    scrapeInstructions TEXT,
-    scrapingStartedAt TEXT,
-    tags TEXT,
-    createdAt TEXT NOT NULL DEFAULT (datetime('now'))
-  );
-
-  CREATE TABLE IF NOT EXISTS events (
-    id TEXT PRIMARY KEY,
-    sourceId TEXT NOT NULL,
-    title TEXT NOT NULL,
-    startDate TEXT NOT NULL,
-    endDate TEXT,
-    location TEXT,
-    description TEXT,
-    url TEXT,
-    imageUrl TEXT,
-    rawData TEXT NOT NULL,
-    createdAt TEXT NOT NULL DEFAULT (datetime('now')),
-    updatedAt TEXT NOT NULL DEFAULT (datetime('now')),
-    scrapedAt TEXT NOT NULL,
-    FOREIGN KEY (sourceId) REFERENCES sources(id) ON DELETE CASCADE,
-    UNIQUE(sourceId, title, startDate)
-  );
-
-  CREATE INDEX IF NOT EXISTS idx_events_startDate ON events(startDate);
-  CREATE INDEX IF NOT EXISTS idx_events_sourceId ON events(sourceId);
-`);
-
-// Migration: Add imageUrl column if it doesn't exist
-try {
-  db.exec(`ALTER TABLE events ADD COLUMN imageUrl TEXT`);
-} catch {
-  // Column already exists, ignore
+// Helper to convert snake_case DB rows to camelCase
+function sourceFromRow(row: Record<string, unknown>): Source {
+  return {
+    id: row.id as string,
+    name: row.name as string,
+    url: row.url as string,
+    enabled: row.enabled as boolean,
+    lastScrapedAt: row.last_scraped_at as string | null,
+    lastContentHash: row.last_content_hash as string | null,
+    scrapeIntervalHours: row.scrape_interval_hours as number,
+    scrapeInstructions: row.scrape_instructions as string | null,
+    scrapingStartedAt: row.scraping_started_at as string | null,
+    tags: row.tags as string | null,
+    logoUrl: row.logo_url as string | null,
+    city: row.city as string | null,
+    createdAt: row.created_at as string,
+  };
 }
 
-// Migration: Add scrapeInstructions column if it doesn't exist
-try {
-  db.exec(`ALTER TABLE sources ADD COLUMN scrapeInstructions TEXT`);
-} catch {
-  // Column already exists, ignore
+function eventFromRow(row: Record<string, unknown>): Event {
+  return {
+    id: row.id as string,
+    sourceId: row.source_id as string,
+    title: row.title as string,
+    startDate: row.start_date as string,
+    endDate: row.end_date as string | null,
+    location: row.location as string | null,
+    description: row.description as string | null,
+    url: row.url as string | null,
+    imageUrl: row.image_url as string | null,
+    rawData: typeof row.raw_data === 'string' ? row.raw_data : JSON.stringify(row.raw_data),
+    createdAt: row.created_at as string,
+    updatedAt: row.updated_at as string,
+    scrapedAt: row.scraped_at as string,
+  };
 }
-
-// Migration: Add scrapingStartedAt column if it doesn't exist
-try {
-  db.exec(`ALTER TABLE sources ADD COLUMN scrapingStartedAt TEXT`);
-} catch {
-  // Column already exists, ignore
-}
-
-// Migration: Add tags column if it doesn't exist
-try {
-  db.exec(`ALTER TABLE sources ADD COLUMN tags TEXT`);
-} catch {
-  // Column already exists, ignore
-}
-
-// Migration: Add logoUrl column if it doesn't exist
-try {
-  db.exec(`ALTER TABLE sources ADD COLUMN logoUrl TEXT`);
-} catch {
-  // Column already exists, ignore
-}
-
-// Migration: Add city column if it doesn't exist
-try {
-  db.exec(`ALTER TABLE sources ADD COLUMN city TEXT`);
-} catch {
-  // Column already exists, ignore
-}
-
-// Settings table for app-wide settings (like squiggle positions)
-db.exec(`
-  CREATE TABLE IF NOT EXISTS settings (
-    key TEXT PRIMARY KEY,
-    value TEXT NOT NULL,
-    updatedAt TEXT NOT NULL DEFAULT (datetime('now'))
-  );
-`);
-
-// Stats table for tracking LLM usage
-db.exec(`
-  CREATE TABLE IF NOT EXISTS llm_usage (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    sourceId TEXT,
-    model TEXT NOT NULL,
-    promptTokens INTEGER NOT NULL,
-    completionTokens INTEGER NOT NULL,
-    totalTokens INTEGER NOT NULL,
-    cost REAL NOT NULL,
-    createdAt TEXT NOT NULL DEFAULT (datetime('now')),
-    FOREIGN KEY (sourceId) REFERENCES sources(id) ON DELETE SET NULL
-  );
-`);
 
 // Settings queries
-export function getSetting(key: string): string | null {
-  const row = db.prepare('SELECT value FROM settings WHERE key = ?').get(key) as { value: string } | undefined;
-  return row?.value ?? null;
+export async function getSetting(key: string): Promise<string | null> {
+  const rows = await sql`SELECT value FROM settings WHERE key = ${key}`;
+  if (rows.length === 0) return null;
+  const value = rows[0].value;
+  return typeof value === 'string' ? value : JSON.stringify(value);
 }
 
-export function setSetting(key: string, value: string): void {
-  db.prepare(`
-    INSERT INTO settings (key, value, updatedAt)
-    VALUES (?, ?, datetime('now'))
-    ON CONFLICT(key) DO UPDATE SET value = excluded.value, updatedAt = datetime('now')
-  `).run(key, value);
+export async function setSetting(key: string, value: string): Promise<void> {
+  await sql`
+    INSERT INTO settings (key, value, updated_at)
+    VALUES (${key}, ${value}::jsonb, NOW())
+    ON CONFLICT(key) DO UPDATE SET value = ${value}::jsonb, updated_at = NOW()
+  `;
 }
 
 // Source queries
-export function getAllSources(): Source[] {
-  return db.prepare('SELECT * FROM sources ORDER BY name').all() as Source[];
+export async function getAllSources(): Promise<Source[]> {
+  const rows = await sql`SELECT * FROM sources ORDER BY name`;
+  return rows.map(sourceFromRow);
 }
 
-export function getEnabledSources(): Source[] {
-  return db.prepare('SELECT * FROM sources WHERE enabled = 1 ORDER BY name').all() as Source[];
+export async function getEnabledSources(): Promise<Source[]> {
+  const rows = await sql`SELECT * FROM sources WHERE enabled = TRUE ORDER BY name`;
+  return rows.map(sourceFromRow);
 }
 
-export function getSourceById(id: string): Source | undefined {
-  return db.prepare('SELECT * FROM sources WHERE id = ?').get(id) as Source | undefined;
+export async function getSourceById(id: string): Promise<Source | undefined> {
+  const rows = await sql`SELECT * FROM sources WHERE id = ${id}`;
+  if (rows.length === 0) return undefined;
+  return sourceFromRow(rows[0]);
 }
 
-export function createSource(source: Omit<Source, 'createdAt'>): Source {
-  const stmt = db.prepare(`
-    INSERT INTO sources (id, name, url, enabled, lastScrapedAt, lastContentHash, scrapeIntervalHours, scrapeInstructions, scrapingStartedAt, tags, logoUrl, city)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `);
-  stmt.run(
-    source.id,
-    source.name,
-    source.url,
-    source.enabled ? 1 : 0,
-    source.lastScrapedAt,
-    source.lastContentHash,
-    source.scrapeIntervalHours,
-    source.scrapeInstructions,
-    source.scrapingStartedAt,
-    source.tags,
-    source.logoUrl,
-    source.city
-  );
-  return getSourceById(source.id)!;
+export async function createSource(source: Omit<Source, 'createdAt'>): Promise<Source> {
+  const rows = await sql`
+    INSERT INTO sources (id, name, url, enabled, last_scraped_at, last_content_hash, scrape_interval_hours, scrape_instructions, scraping_started_at, tags, logo_url, city)
+    VALUES (${source.id}, ${source.name}, ${source.url}, ${source.enabled}, ${source.lastScrapedAt}, ${source.lastContentHash}, ${source.scrapeIntervalHours}, ${source.scrapeInstructions}, ${source.scrapingStartedAt}, ${source.tags}, ${source.logoUrl}, ${source.city})
+    RETURNING *
+  `;
+  return sourceFromRow(rows[0]);
 }
 
-export function updateSource(id: string, updates: Partial<Source>): Source | undefined {
-  const current = getSourceById(id);
+export async function updateSource(id: string, updates: Partial<Source>): Promise<Source | undefined> {
+  const current = await getSourceById(id);
   if (!current) return undefined;
 
-  const fields: string[] = [];
+  // Build dynamic update - PostgreSQL style
+  const sets: string[] = [];
   const values: unknown[] = [];
+  let paramIndex = 1;
 
   if (updates.name !== undefined) {
-    fields.push('name = ?');
+    sets.push(`name = $${paramIndex++}`);
     values.push(updates.name);
   }
   if (updates.url !== undefined) {
-    fields.push('url = ?');
+    sets.push(`url = $${paramIndex++}`);
     values.push(updates.url);
   }
   if (updates.enabled !== undefined) {
-    fields.push('enabled = ?');
-    values.push(updates.enabled ? 1 : 0);
+    sets.push(`enabled = $${paramIndex++}`);
+    values.push(updates.enabled);
   }
   if (updates.lastScrapedAt !== undefined) {
-    fields.push('lastScrapedAt = ?');
+    sets.push(`last_scraped_at = $${paramIndex++}`);
     values.push(updates.lastScrapedAt);
   }
   if (updates.lastContentHash !== undefined) {
-    fields.push('lastContentHash = ?');
+    sets.push(`last_content_hash = $${paramIndex++}`);
     values.push(updates.lastContentHash);
   }
   if (updates.scrapeIntervalHours !== undefined) {
-    fields.push('scrapeIntervalHours = ?');
+    sets.push(`scrape_interval_hours = $${paramIndex++}`);
     values.push(updates.scrapeIntervalHours);
   }
   if (updates.scrapeInstructions !== undefined) {
-    fields.push('scrapeInstructions = ?');
+    sets.push(`scrape_instructions = $${paramIndex++}`);
     values.push(updates.scrapeInstructions);
   }
   if (updates.scrapingStartedAt !== undefined) {
-    fields.push('scrapingStartedAt = ?');
+    sets.push(`scraping_started_at = $${paramIndex++}`);
     values.push(updates.scrapingStartedAt);
   }
   if (updates.tags !== undefined) {
-    fields.push('tags = ?');
+    sets.push(`tags = $${paramIndex++}`);
     values.push(updates.tags);
   }
   if (updates.logoUrl !== undefined) {
-    fields.push('logoUrl = ?');
+    sets.push(`logo_url = $${paramIndex++}`);
     values.push(updates.logoUrl);
   }
   if (updates.city !== undefined) {
-    fields.push('city = ?');
+    sets.push(`city = $${paramIndex++}`);
     values.push(updates.city);
   }
 
-  if (fields.length === 0) return current;
+  if (sets.length === 0) return current;
 
   values.push(id);
-  db.prepare(`UPDATE sources SET ${fields.join(', ')} WHERE id = ?`).run(...values);
-  return getSourceById(id);
+  const query = `UPDATE sources SET ${sets.join(', ')} WHERE id = $${paramIndex} RETURNING *`;
+
+  // Use pool.query for dynamic parameterized queries
+  const result = await pool.query(query, values);
+  return sourceFromRow(result.rows[0]);
 }
 
-export function deleteSource(id: string): boolean {
-  const result = db.prepare('DELETE FROM sources WHERE id = ?').run(id);
-  return result.changes > 0;
+export async function deleteSource(id: string): Promise<boolean> {
+  const result = await pool.query('DELETE FROM sources WHERE id = $1', [id]);
+  return (result.rowCount ?? 0) > 0;
 }
 
 // Event queries
-export function getEvents(options: {
+export async function getEvents(options: {
   sourceIds?: string[];
   from?: string;
   to?: string;
   limit?: number;
-}): Event[] {
-  let query = 'SELECT * FROM events WHERE 1=1';
-  const params: unknown[] = [];
+}): Promise<Event[]> {
+  // Build query dynamically
+  const conditions: string[] = ['1=1'];
+  const values: unknown[] = [];
+  let paramIndex = 1;
 
   if (options.sourceIds && options.sourceIds.length > 0) {
-    query += ` AND sourceId IN (${options.sourceIds.map(() => '?').join(',')})`;
-    params.push(...options.sourceIds);
+    const placeholders = options.sourceIds.map(() => `$${paramIndex++}`).join(',');
+    conditions.push(`source_id IN (${placeholders})`);
+    values.push(...options.sourceIds);
   }
 
   if (options.from) {
-    query += ' AND startDate >= ?';
-    params.push(options.from);
+    conditions.push(`start_date >= $${paramIndex++}`);
+    values.push(options.from);
   }
 
   if (options.to) {
-    query += ' AND startDate <= ?';
-    params.push(options.to);
+    conditions.push(`start_date <= $${paramIndex++}`);
+    values.push(options.to);
   }
 
-  query += ' ORDER BY startDate ASC';
+  let query = `SELECT * FROM events WHERE ${conditions.join(' AND ')} ORDER BY start_date ASC`;
 
   if (options.limit) {
-    query += ' LIMIT ?';
-    params.push(options.limit);
+    query += ` LIMIT $${paramIndex++}`;
+    values.push(options.limit);
   }
 
-  return db.prepare(query).all(...params) as Event[];
+  // Use pool.query for dynamic parameterized queries
+  const result = await pool.query(query, values);
+  return result.rows.map(eventFromRow);
 }
 
-export function upsertEvent(event: Omit<Event, 'createdAt' | 'updatedAt'>): void {
-  const stmt = db.prepare(`
-    INSERT INTO events (id, sourceId, title, startDate, endDate, location, description, url, imageUrl, rawData, scrapedAt)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    ON CONFLICT(sourceId, title, startDate) DO UPDATE SET
-      endDate = excluded.endDate,
-      location = excluded.location,
-      description = excluded.description,
-      url = excluded.url,
-      imageUrl = excluded.imageUrl,
-      rawData = excluded.rawData,
-      updatedAt = datetime('now'),
-      scrapedAt = excluded.scrapedAt
-  `);
-  stmt.run(
-    event.id,
-    event.sourceId,
-    event.title,
-    event.startDate,
-    event.endDate,
-    event.location,
-    event.description,
-    event.url,
-    event.imageUrl,
-    event.rawData,
-    event.scrapedAt
-  );
+export async function getEventById(id: string): Promise<Event | undefined> {
+  const rows = await sql`SELECT * FROM events WHERE id = ${id}`;
+  if (rows.length === 0) return undefined;
+  return eventFromRow(rows[0]);
 }
 
-export function deleteEventsBySource(sourceId: string): number {
-  const result = db.prepare('DELETE FROM events WHERE sourceId = ?').run(sourceId);
-  return result.changes;
+export async function upsertEvent(event: Omit<Event, 'createdAt' | 'updatedAt'>): Promise<void> {
+  const rawDataJson = typeof event.rawData === 'string' ? event.rawData : JSON.stringify(event.rawData);
+
+  await sql`
+    INSERT INTO events (id, source_id, title, start_date, end_date, location, description, url, image_url, raw_data, scraped_at)
+    VALUES (${event.id}, ${event.sourceId}, ${event.title}, ${event.startDate}, ${event.endDate}, ${event.location}, ${event.description}, ${event.url}, ${event.imageUrl}, ${rawDataJson}::jsonb, ${event.scrapedAt})
+    ON CONFLICT(source_id, title, start_date) DO UPDATE SET
+      end_date = EXCLUDED.end_date,
+      location = EXCLUDED.location,
+      description = EXCLUDED.description,
+      url = EXCLUDED.url,
+      image_url = EXCLUDED.image_url,
+      raw_data = EXCLUDED.raw_data,
+      updated_at = NOW(),
+      scraped_at = EXCLUDED.scraped_at
+  `;
+}
+
+export async function deleteEvent(id: string): Promise<boolean> {
+  const result = await pool.query('DELETE FROM events WHERE id = $1', [id]);
+  return (result.rowCount ?? 0) > 0;
+}
+
+export async function deleteEventsBySource(sourceId: string): Promise<number> {
+  const result = await pool.query('DELETE FROM events WHERE source_id = $1', [sourceId]);
+  return result.rowCount ?? 0;
 }
 
 // LLM usage tracking
@@ -306,67 +238,76 @@ export interface LLMUsage {
   createdAt: string;
 }
 
-export function recordLLMUsage(usage: Omit<LLMUsage, 'id' | 'createdAt'>): void {
-  db.prepare(`
-    INSERT INTO llm_usage (sourceId, model, promptTokens, completionTokens, totalTokens, cost)
-    VALUES (?, ?, ?, ?, ?, ?)
-  `).run(
-    usage.sourceId,
-    usage.model,
-    usage.promptTokens,
-    usage.completionTokens,
-    usage.totalTokens,
-    usage.cost
-  );
+export async function recordLLMUsage(usage: Omit<LLMUsage, 'id' | 'createdAt'>): Promise<void> {
+  await sql`
+    INSERT INTO llm_usage (source_id, model, prompt_tokens, completion_tokens, total_tokens, cost)
+    VALUES (${usage.sourceId}, ${usage.model}, ${usage.promptTokens}, ${usage.completionTokens}, ${usage.totalTokens}, ${usage.cost})
+  `;
 }
 
-export function getLLMStats(): {
+export async function getLLMStats(): Promise<{
   totalCalls: number;
   totalPromptTokens: number;
   totalCompletionTokens: number;
   totalTokens: number;
   totalCost: number;
   recentUsage: LLMUsage[];
-} {
-  const totals = db.prepare(`
+}> {
+  const totalsRows = await sql`
     SELECT
-      COUNT(*) as totalCalls,
-      COALESCE(SUM(promptTokens), 0) as totalPromptTokens,
-      COALESCE(SUM(completionTokens), 0) as totalCompletionTokens,
-      COALESCE(SUM(totalTokens), 0) as totalTokens,
-      COALESCE(SUM(cost), 0) as totalCost
+      COUNT(*) as total_calls,
+      COALESCE(SUM(prompt_tokens), 0) as total_prompt_tokens,
+      COALESCE(SUM(completion_tokens), 0) as total_completion_tokens,
+      COALESCE(SUM(total_tokens), 0) as total_tokens,
+      COALESCE(SUM(cost), 0) as total_cost
     FROM llm_usage
-  `).get() as {
-    totalCalls: number;
-    totalPromptTokens: number;
-    totalCompletionTokens: number;
-    totalTokens: number;
-    totalCost: number;
+  `;
+
+  const recentRows = await sql`
+    SELECT * FROM llm_usage ORDER BY created_at DESC LIMIT 20
+  `;
+
+  const totals = totalsRows[0];
+  const recentUsage: LLMUsage[] = recentRows.map(row => ({
+    id: row.id as number,
+    sourceId: row.source_id as string | null,
+    model: row.model as string,
+    promptTokens: row.prompt_tokens as number,
+    completionTokens: row.completion_tokens as number,
+    totalTokens: row.total_tokens as number,
+    cost: Number(row.cost),
+    createdAt: row.created_at as string,
+  }));
+
+  return {
+    totalCalls: Number(totals.total_calls),
+    totalPromptTokens: Number(totals.total_prompt_tokens),
+    totalCompletionTokens: Number(totals.total_completion_tokens),
+    totalTokens: Number(totals.total_tokens),
+    totalCost: Number(totals.total_cost),
+    recentUsage,
   };
-
-  const recentUsage = db.prepare(`
-    SELECT * FROM llm_usage ORDER BY createdAt DESC LIMIT 20
-  `).all() as LLMUsage[];
-
-  return { ...totals, recentUsage };
 }
 
-export function getEventStats(): {
+export async function getEventStats(): Promise<{
   totalEvents: number;
   totalSources: number;
   enabledSources: number;
   eventsThisMonth: number;
-} {
-  const totalEvents = (db.prepare('SELECT COUNT(*) as count FROM events').get() as { count: number }).count;
-  const totalSources = (db.prepare('SELECT COUNT(*) as count FROM sources').get() as { count: number }).count;
-  const enabledSources = (db.prepare('SELECT COUNT(*) as count FROM sources WHERE enabled = 1').get() as { count: number }).count;
+}> {
+  const [eventsRow] = await sql`SELECT COUNT(*) as count FROM events`;
+  const [sourcesRow] = await sql`SELECT COUNT(*) as count FROM sources`;
+  const [enabledRow] = await sql`SELECT COUNT(*) as count FROM sources WHERE enabled = TRUE`;
 
   const startOfMonth = new Date();
   startOfMonth.setDate(1);
   startOfMonth.setHours(0, 0, 0, 0);
-  const eventsThisMonth = (db.prepare('SELECT COUNT(*) as count FROM events WHERE startDate >= ?').get(startOfMonth.toISOString()) as { count: number }).count;
+  const [monthRow] = await sql`SELECT COUNT(*) as count FROM events WHERE start_date >= ${startOfMonth.toISOString()}`;
 
-  return { totalEvents, totalSources, enabledSources, eventsThisMonth };
+  return {
+    totalEvents: Number(eventsRow.count),
+    totalSources: Number(sourcesRow.count),
+    enabledSources: Number(enabledRow.count),
+    eventsThisMonth: Number(monthRow.count),
+  };
 }
-
-export { db };

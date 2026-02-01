@@ -146,7 +146,7 @@ Return ONLY the URL, "SVG_EMBEDDED", or "NOT_FOUND" - no explanation.`,
     if (usage) {
       const pricing = PRICING[model as keyof typeof PRICING];
       const cost = (usage.prompt_tokens * pricing.input) + (usage.completion_tokens * pricing.output);
-      recordLLMUsage({
+      await recordLLMUsage({
         sourceId: sourceId || null,
         model,
         promptTokens: usage.prompt_tokens,

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
+import { deleteEvent } from '@/lib/db';
 
 export async function DELETE(
   request: NextRequest,
@@ -7,9 +7,9 @@ export async function DELETE(
 ) {
   const { id } = await params;
 
-  const result = db.prepare('DELETE FROM events WHERE id = ?').run(id);
+  const deleted = await deleteEvent(id);
 
-  if (result.changes === 0) {
+  if (!deleted) {
     return NextResponse.json({ error: 'Event not found' }, { status: 404 });
   }
 

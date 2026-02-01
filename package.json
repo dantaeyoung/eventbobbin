@@ -12,11 +12,13 @@
     "postinstall": "npx playwright install chromium"
   },
   "dependencies": {
+    "@neondatabase/serverless": "^1.0.2",
     "better-sqlite3": "^12.6.2",
     "date-fns": "^4.1.0",
     "dotenv": "^17.2.3",
     "next": "16.1.6",
     "openai": "^6.17.0",
+    "pg": "^8.18.0",
     "playwright": "^1.58.1",
     "react": "19.2.3",
     "react-dom": "19.2.3"
@@ -25,6 +27,7 @@
     "@tailwindcss/postcss": "^4",
     "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^20",
+    "@types/pg": "^8.16.0",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",

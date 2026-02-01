@@ -6,7 +6,7 @@ export async function GET(
   { params }: { params: Promise<{ key: string }> }
 ) {
   const { key } = await params;
-  const value = getSetting(key);
+  const value = await getSetting(key);
   if (value === null) {
     return NextResponse.json({ error: 'Setting not found' }, { status: 404 });
   }
@@ -19,6 +19,6 @@ export async function PUT(
 ) {
   const { key } = await params;
   const body = await request.json();
-  setSetting(key, JSON.stringify(body.value));
+  await setSetting(key, JSON.stringify(body.value));
   return NextResponse.json({ key, value: body.value });
 }

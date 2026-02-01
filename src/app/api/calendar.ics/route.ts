@@ -21,8 +21,8 @@ export async function GET(request: NextRequest) {
 
   // Get all future events
   const from = format(startOfDay(new Date()), "yyyy-MM-dd'T'HH:mm:ss");
-  const events = getEvents({ sourceIds, from });
-  const sources = getAllSources();
+  const events = await getEvents({ sourceIds, from });
+  const sources = await getAllSources();
   const sourceMap = new Map(sources.map((s) => [s.id, s]));
 
   const lines = [

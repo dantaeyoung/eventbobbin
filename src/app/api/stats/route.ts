@@ -3,8 +3,8 @@ import { getLLMStats, getEventStats } from '@/lib/db';
 
 export async function GET() {
   try {
-    const llmStats = getLLMStats();
-    const eventStats = getEventStats();
+    const llmStats = await getLLMStats();
+    const eventStats = await getEventStats();
 
     return NextResponse.json({
       llm: llmStats,

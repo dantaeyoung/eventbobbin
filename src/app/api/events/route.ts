@@ -11,7 +11,7 @@ export async function GET(request: NextRequest) {
     ? parseInt(searchParams.get('limit')!, 10)
     : undefined;
 
-  const events = getEvents({
+  const events = await getEvents({
     sourceIds,
     from,
     to,

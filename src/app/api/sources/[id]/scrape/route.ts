@@ -9,7 +9,7 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  const source = getSourceById(id);
+  const source = await getSourceById(id);
 
   if (!source) {
     return NextResponse.json({ error: 'Source not found' }, { status: 404 });
@@ -31,7 +31,7 @@ export async function POST(
   }
 
   // Mark as scraping
-  updateSource(id, { scrapingStartedAt: new Date().toISOString() });
+  await updateSource(id, { scrapingStartedAt: new Date().toISOString() });
 
   try {
     const force = request.nextUrl.searchParams.get('force') === 'true';
@@ -39,6 +39,6 @@ export async function POST(
     return NextResponse.json(result);
   } finally {
     // Clear scraping state
-    updateSource(id, { scrapingStartedAt: null });
+    await updateSource(id, { scrapingStartedAt: null });
   }
 }

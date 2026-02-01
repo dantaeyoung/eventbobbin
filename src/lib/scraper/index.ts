@@ -57,7 +57,7 @@ export async function scrapeSource(
     // Upsert events
     const scrapedAt = new Date().toISOString();
     for (const event of events) {
-      upsertEvent({
+      await upsertEvent({
         id: randomUUID(),
         sourceId: source.id,
         title: event.title,
@@ -101,7 +101,7 @@ export async function scrapeSource(
 }
 
 export async function scrapeAll(): Promise<void> {
-  const sources = getEnabledSources();
+  const sources = await getEnabledSources();
   console.log(`Found ${sources.length} enabled sources`);
 
   const now = new Date();

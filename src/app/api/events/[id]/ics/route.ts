@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
-import { Event } from '@/lib/types';
+import { getEventById } from '@/lib/db';
 
 function formatIcsDate(date: string): string {
   return date.replace(/[-:]/g, '').split('.')[0];
@@ -15,7 +14,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  const event = db.prepare('SELECT * FROM events WHERE id = ?').get(id) as Event | undefined;
+  const event = await getEventById(id);
 
   if (!event) {
     return NextResponse.json({ error: 'Event not found' }, { status: 404 });

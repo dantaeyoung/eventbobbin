@@ -10,31 +10,35 @@ const initialSources = [
   { name: 'Light and Sound', url: 'https://www.lightandsound.design/' },
 ];
 
-const existing = getAllSources();
-const existingUrls = new Set(existing.map((s) => s.url));
+async function main() {
+  const existing = await getAllSources();
+  const existingUrls = new Set(existing.map((s) => s.url));
 
-let added = 0;
-for (const source of initialSources) {
-  if (!existingUrls.has(source.url)) {
-    createSource({
-      id: randomUUID(),
-      name: source.name,
-      url: source.url,
-      enabled: true,
-      lastScrapedAt: null,
-      lastContentHash: null,
-      scrapeIntervalHours: 24,
-      scrapeInstructions: null,
-      scrapingStartedAt: null,
-      tags: null,
-      logoUrl: null,
-      city: null,
-    });
-    console.log(`Added: ${source.name}`);
-    added++;
-  } else {
-    console.log(`Skipped (exists): ${source.name}`);
+  let added = 0;
+  for (const source of initialSources) {
+    if (!existingUrls.has(source.url)) {
+      await createSource({
+        id: randomUUID(),
+        name: source.name,
+        url: source.url,
+        enabled: true,
+        lastScrapedAt: null,
+        lastContentHash: null,
+        scrapeIntervalHours: 24,
+        scrapeInstructions: null,
+        scrapingStartedAt: null,
+        tags: null,
+        logoUrl: null,
+        city: null,
+      });
+      console.log(`Added: ${source.name}`);
+      added++;
+    } else {
+      console.log(`Skipped (exists): ${source.name}`);
+    }
   }
+
+  console.log(`\nDone! Added ${added} sources.`);
 }
 
-console.log(`\nDone! Added ${added} sources.`);
+main().catch(console.error);
