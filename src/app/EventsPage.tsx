@@ -148,6 +148,15 @@ export function EventsPage({ initialEvents, initialSources }: EventsPageProps) {
     return dates;
   }, [allEvents, effectiveSourceIds]);
 
+  // Compute event count per source
+  const eventCountBySource = useMemo(() => {
+    const counts: Record<string, number> = {};
+    allEvents.forEach((e) => {
+      counts[e.sourceId] = (counts[e.sourceId] || 0) + 1;
+    });
+    return counts;
+  }, [allEvents]);
+
   // Load saved filters from localStorage on mount
   useEffect(() => {
     setSelectedCity(loadCity());
@@ -378,6 +387,9 @@ export function EventsPage({ initialEvents, initialSources }: EventsPageProps) {
                         : 'hover:bg-gray-100 text-gray-700'
                     }`}
                   >
+                    <span className="w-5 text-right text-xs opacity-60 tabular-nums flex-shrink-0">
+                      {eventCountBySource[source.id] || 0}
+                    </span>
                     <div
                       className="w-4 h-4 flex-shrink-0 rounded overflow-hidden"
                       style={{ backgroundColor: source.logoUrl ? undefined : stringToPastelColor(source.name) }}
@@ -745,6 +757,9 @@ export function EventsPage({ initialEvents, initialSources }: EventsPageProps) {
                           : 'bg-gray-100 text-gray-700'
                       }`}
                     >
+                      <span className="w-5 text-right text-xs opacity-60 tabular-nums flex-shrink-0">
+                        {eventCountBySource[source.id] || 0}
+                      </span>
                       <div
                         className="w-5 h-5 flex-shrink-0 rounded overflow-hidden"
                         style={{ backgroundColor: source.logoUrl ? undefined : stringToPastelColor(source.name) }}

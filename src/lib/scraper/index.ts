@@ -9,6 +9,7 @@ import { renderPage, closeBrowser } from './browser';
 import { extractEvents } from './extract';
 import { detectLogo, cacheLogoImage } from './logo';
 import { fetchEventPageDetails } from './eventImage';
+import { isInstagramUrl, extractEventFromInstagram } from './instagram';
 
 /**
  * Parse various date formats from JSON-LD schema into ISO string
@@ -54,6 +55,40 @@ export async function scrapeSource(
   console.log(`Scraping: ${source.name} (${source.url})${force ? ' [FORCE]' : ''}`);
 
   try {
+    // Handle Instagram posts specially
+    if (isInstagramUrl(source.url)) {
+      console.log('  Detected Instagram URL, using Instagram scraper');
+      const instagramEvent = await extractEventFromInstagram(source.url);
+
+      if (!instagramEvent) {
+        return { success: false, eventsFound: 0, skipped: false, error: 'Failed to extract Instagram post' };
+      }
+
+      // Create event from Instagram data
+      const eventId = randomUUID();
+      const now = new Date().toISOString();
+      await upsertEvent({
+        id: eventId,
+        sourceId: source.id,
+        title: instagramEvent.title,
+        description: instagramEvent.description,
+        startDate: now, // Instagram posts don't have event dates, use current date
+        endDate: null,
+        url: source.url,
+        imageUrl: instagramEvent.imageUrl || null,
+        location: instagramEvent.location || null,
+        rawData: instagramEvent.rawData,
+        scrapedAt: now,
+      });
+
+      await updateSource(source.id, {
+        lastScrapedAt: new Date().toISOString(),
+      });
+
+      console.log(`  Created event from Instagram post: ${instagramEvent.title.substring(0, 50)}...`);
+      return { success: true, eventsFound: 1, skipped: false };
+    }
+
     // Render the page
     const { text, links, hash } = await renderPage(source.url);
 
