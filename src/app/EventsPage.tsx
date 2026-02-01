@@ -1,64 +1,19 @@
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { format, startOfDay, endOfDay, endOfWeek, addDays, startOfWeek } from 'date-fns';
+import { format, startOfDay, endOfDay } from 'date-fns';
 import { Event, Source } from '@/lib/types';
 import { EventList } from '@/components/EventList';
-import { DateFilter, DateRange } from '@/components/DateFilter';
 import { Calendar } from '@/components/Calendar';
 import { TagFilter } from '@/components/TagFilter';
 import { api } from '@/lib/api';
 import { fetchSquiggleSettings, setSquiggleSettingsCache, SquiggleSettings } from '@/lib/squiggleSettings';
 
-const DATE_RANGE_KEY = 'eventbobbin-daterange';
 const CITY_KEY = 'eventbobbin-city';
 
 interface EventsPageProps {
   initialEvents: Event[];
   initialSources: Source[];
-}
-
-function getDateRange(range: DateRange): { from: string; to: string } {
-  const now = new Date();
-  switch (range) {
-    case 'today':
-      return {
-        from: format(startOfDay(now), "yyyy-MM-dd'T'HH:mm:ss"),
-        to: format(endOfDay(now), "yyyy-MM-dd'T'HH:mm:ss"),
-      };
-    case 'tomorrow':
-      const tomorrow = addDays(now, 1);
-      return {
-        from: format(startOfDay(tomorrow), "yyyy-MM-dd'T'HH:mm:ss"),
-        to: format(endOfDay(tomorrow), "yyyy-MM-dd'T'HH:mm:ss"),
-      };
-    case 'week':
-      return {
-        from: format(startOfDay(now), "yyyy-MM-dd'T'HH:mm:ss"),
-        to: format(endOfWeek(now), "yyyy-MM-dd'T'HH:mm:ss"),
-      };
-    case 'nextweek':
-      const nextWeekStart = startOfWeek(addDays(now, 7));
-      const nextWeekEnd = endOfWeek(nextWeekStart);
-      return {
-        from: format(startOfDay(nextWeekStart), "yyyy-MM-dd'T'HH:mm:ss"),
-        to: format(endOfDay(nextWeekEnd), "yyyy-MM-dd'T'HH:mm:ss"),
-      };
-    case 'all':
-      return {
-        from: format(startOfDay(now), "yyyy-MM-dd'T'HH:mm:ss"),
-        to: '',
-      };
-  }
-}
-
-function loadDateRange(): DateRange {
-  if (typeof window === 'undefined') return 'week';
-  const stored = localStorage.getItem(DATE_RANGE_KEY);
-  if (stored && ['today', 'tomorrow', 'week', 'nextweek', 'all'].includes(stored)) {
-    return stored as DateRange;
-  }
-  return 'week';
 }
 
 function loadCity(): string | null {
@@ -74,7 +29,6 @@ export function EventsPage({ initialEvents, initialSources }: EventsPageProps) {
   const [squiggleSettings, setSquiggleSettings] = useState<SquiggleSettings>({});
   const [selectedSources, setSelectedSources] = useState<string[]>([]);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
-  const [dateRange, setDateRange] = useState<DateRange | null>('week');
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [mounted, setMounted] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -150,9 +104,8 @@ export function EventsPage({ initialEvents, initialSources }: EventsPageProps) {
     return dates;
   }, [allEvents, effectiveSourceIds]);
 
-  // Load date range and city from localStorage on mount
+  // Load city from localStorage on mount
   useEffect(() => {
-    setDateRange(loadDateRange());
     setSelectedCity(loadCity());
     setMounted(true);
     // Fetch all future events for calendar dots
@@ -177,24 +130,8 @@ export function EventsPage({ initialEvents, initialSources }: EventsPageProps) {
     }
   }, [selectedCity, mounted]);
 
-  // Save date range to localStorage when it changes
-  useEffect(() => {
-    if (mounted && dateRange) {
-      localStorage.setItem(DATE_RANGE_KEY, dateRange);
-    }
-  }, [dateRange, mounted]);
-
-
-  const handleDateRangeChange = (range: DateRange) => {
-    setDateRange(range);
-    setSelectedDate(null); // Clear calendar selection
-  };
-
   const handleCalendarSelect = (date: Date | null) => {
     setSelectedDate(date);
-    if (date) {
-      setDateRange(null); // Deselect date range buttons when calendar date selected
-    }
   };
 
   const fetchEvents = useCallback(async () => {
@@ -214,13 +151,8 @@ export function EventsPage({ initialEvents, initialSources }: EventsPageProps) {
         // Calendar date selected - show just that day
         from = format(startOfDay(selectedDate), "yyyy-MM-dd'T'HH:mm:ss");
         to = format(endOfDay(selectedDate), "yyyy-MM-dd'T'HH:mm:ss");
-      } else if (dateRange) {
-        // Use date range filter
-        const range = getDateRange(dateRange);
-        from = range.from || undefined;
-        to = range.to || undefined;
       } else {
-        // No filter - show from today onwards
+        // Show all future events from today onwards
         from = format(startOfDay(new Date()), "yyyy-MM-dd'T'HH:mm:ss");
       }
 
@@ -235,7 +167,7 @@ export function EventsPage({ initialEvents, initialSources }: EventsPageProps) {
     } finally {
       setLoading(false);
     }
-  }, [effectiveSourceIds, dateRange, selectedDate]);
+  }, [effectiveSourceIds, selectedDate]);
 
   useEffect(() => {
     fetchEvents();
@@ -309,15 +241,9 @@ export function EventsPage({ initialEvents, initialSources }: EventsPageProps) {
               <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
             )}
           </button>
-          <div className="flex items-center gap-2">
-            {loading && (
-              <span className="text-sm text-gray-500">Loading...</span>
-            )}
-            <DateFilter
-              selected={dateRange}
-              onChange={handleDateRangeChange}
-            />
-          </div>
+          {loading && (
+            <span className="text-sm text-gray-500">Loading...</span>
+          )}
         </div>
 
         <div className="flex gap-6 h-full">
@@ -411,15 +337,9 @@ export function EventsPage({ initialEvents, initialSources }: EventsPageProps) {
           {/* Right: Filters and Events */}
           <div className="flex-1 min-w-0 flex flex-col h-full">
             <div className="space-y-4 mb-6 flex-shrink-0">
-              <div className="hidden md:flex items-center justify-between">
-                <DateFilter
-                  selected={dateRange}
-                  onChange={handleDateRangeChange}
-                />
-                {loading && (
-                  <span className="text-sm text-gray-500">Loading...</span>
-                )}
-              </div>
+              {loading && (
+                <div className="hidden md:block text-sm text-gray-500">Loading...</div>
+              )}
               {selectedDate && (
                 <div className="text-sm text-gray-600">
                   Showing events for {format(selectedDate, 'EEEE, MMMM d, yyyy')}
