@@ -12,6 +12,8 @@ import { api } from '@/lib/api';
 import { fetchSquiggleSettings, setSquiggleSettingsCache, SquiggleSettings } from '@/lib/squiggleSettings';
 
 const CITY_KEY = 'eventbobbin-city';
+const SOURCES_KEY = 'eventbobbin-sources';
+const TAGS_KEY = 'eventbobbin-tags';
 
 interface EventsPageProps {
   initialEvents: Event[];
@@ -21,6 +23,32 @@ interface EventsPageProps {
 function loadCity(): string | null {
   if (typeof window === 'undefined') return null;
   return localStorage.getItem(CITY_KEY);
+}
+
+function loadSources(): string[] {
+  if (typeof window === 'undefined') return [];
+  const stored = localStorage.getItem(SOURCES_KEY);
+  if (stored) {
+    try {
+      return JSON.parse(stored);
+    } catch {
+      return [];
+    }
+  }
+  return [];
+}
+
+function loadTags(): string[] {
+  if (typeof window === 'undefined') return [];
+  const stored = localStorage.getItem(TAGS_KEY);
+  if (stored) {
+    try {
+      return JSON.parse(stored);
+    } catch {
+      return [];
+    }
+  }
+  return [];
 }
 
 
@@ -107,9 +135,11 @@ export function EventsPage({ initialEvents, initialSources }: EventsPageProps) {
     return dates;
   }, [allEvents, effectiveSourceIds]);
 
-  // Load city from localStorage on mount
+  // Load saved filters from localStorage on mount
   useEffect(() => {
     setSelectedCity(loadCity());
+    setSelectedSources(loadSources());
+    setSelectedTags(loadTags());
     setMounted(true);
     // Fetch all future events for calendar dots
     api.getEvents({ from: format(startOfDay(new Date()), "yyyy-MM-dd'T'HH:mm:ss") })
@@ -132,6 +162,28 @@ export function EventsPage({ initialEvents, initialSources }: EventsPageProps) {
       }
     }
   }, [selectedCity, mounted]);
+
+  // Save sources to localStorage when they change
+  useEffect(() => {
+    if (mounted) {
+      if (selectedSources.length > 0) {
+        localStorage.setItem(SOURCES_KEY, JSON.stringify(selectedSources));
+      } else {
+        localStorage.removeItem(SOURCES_KEY);
+      }
+    }
+  }, [selectedSources, mounted]);
+
+  // Save tags to localStorage when they change
+  useEffect(() => {
+    if (mounted) {
+      if (selectedTags.length > 0) {
+        localStorage.setItem(TAGS_KEY, JSON.stringify(selectedTags));
+      } else {
+        localStorage.removeItem(TAGS_KEY);
+      }
+    }
+  }, [selectedTags, mounted]);
 
   const handleCalendarSelect = (date: Date | null) => {
     setSelectedDate(date);
