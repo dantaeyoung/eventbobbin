@@ -338,11 +338,12 @@ export function EventsPage({ initialEvents, initialSources }: EventsPageProps) {
           </div>
 
           {/* Right: Filters and Events */}
-          <div className="flex-1 min-w-0 flex flex-col h-full">
+          <div className="flex-1 min-w-0 flex flex-col h-full relative">
+            {/* Loading overlay */}
+            {loading && (
+              <div className="absolute top-0 right-0 text-sm text-gray-500 z-10">Loading...</div>
+            )}
             <div className="space-y-4 mb-6 flex-shrink-0">
-              {loading && (
-                <div className="hidden md:block text-sm text-gray-500">Loading...</div>
-              )}
               {selectedDate && (
                 <div className="text-sm text-gray-600">
                   Showing events for {format(selectedDate, 'EEEE, MMMM d, yyyy')}
