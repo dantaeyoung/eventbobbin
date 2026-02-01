@@ -2,6 +2,7 @@
 
 import { format } from 'date-fns';
 import { AppNav } from '@/components/TabNav';
+import { DitheredBackground } from '@/components/DitheredBackground';
 
 interface LLMUsage {
   id: number;
@@ -48,7 +49,8 @@ export function StatsPage({ initialStats }: StatsPageProps) {
   const { llm, events } = initialStats;
 
   return (
-    <div className="min-h-screen bg-[#FFF8F0]">
+    <div className="min-h-screen">
+      <DitheredBackground />
       <header className="bg-white border-b border-gray-200">
         <div className="max-w-6xl mx-auto px-4">
           <div className="flex items-end justify-between pt-3">

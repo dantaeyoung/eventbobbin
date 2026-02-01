@@ -12,6 +12,7 @@ import {
 } from '@/lib/squiggleSettings';
 import { getTagColor } from '@/lib/tagColors';
 import { AppNav } from '@/components/TabNav';
+import { DitheredBackground } from '@/components/DitheredBackground';
 
 interface SquigglesPageProps {
   initialSources: Source[];
@@ -201,7 +202,8 @@ export function SquigglesPage({ initialSources }: SquigglesPageProps) {
   };
 
   return (
-    <div className="min-h-screen bg-[#FFF8F0]">
+    <div className="min-h-screen">
+      <DitheredBackground />
       <header className="bg-white border-b border-gray-200">
         <div className="max-w-6xl mx-auto px-4">
           <div className="flex items-end justify-between pt-3">

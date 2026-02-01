@@ -20,6 +20,7 @@ import { TagInput } from '@/components/TagInput';
 import { getTagColor } from '@/lib/tagColors';
 import { api } from '@/lib/api';
 import { AppNav } from '@/components/TabNav';
+import { DitheredBackground } from '@/components/DitheredBackground';
 
 function formatElapsed(startTime: string): string {
   const seconds = Math.floor((Date.now() - new Date(startTime).getTime()) / 1000);
@@ -293,7 +294,8 @@ export function SourcesPage({ initialSources }: SourcesPageProps) {
   };
 
   return (
-    <div className="min-h-screen bg-[#FFF8F0]">
+    <div className="min-h-screen">
+      <DitheredBackground />
       <header className="bg-white border-b border-gray-200">
         <div className="max-w-6xl mx-auto px-4">
           <div className="flex items-end justify-between pt-3">

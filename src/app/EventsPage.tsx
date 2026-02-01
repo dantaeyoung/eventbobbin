@@ -7,6 +7,7 @@ import { EventList } from '@/components/EventList';
 import { Calendar } from '@/components/Calendar';
 import { TagFilter } from '@/components/TagFilter';
 import { AppNav } from '@/components/TabNav';
+import { DitheredBackground } from '@/components/DitheredBackground';
 import { api } from '@/lib/api';
 import { fetchSquiggleSettings, setSquiggleSettingsCache, SquiggleSettings } from '@/lib/squiggleSettings';
 
@@ -187,7 +188,8 @@ export function EventsPage({ initialEvents, initialSources }: EventsPageProps) {
   };
 
   return (
-    <div className="h-screen flex flex-col bg-[#FFF8F0] overflow-hidden">
+    <div className="h-screen flex flex-col overflow-hidden">
+      <DitheredBackground />
       <header className="bg-white border-b border-gray-200 flex-shrink-0">
         <div className="max-w-6xl mx-auto px-4">
           <div className="flex items-end justify-between pt-3">
