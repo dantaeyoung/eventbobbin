@@ -186,37 +186,41 @@ export function EventCard({ event, source, onDelete, squiggleSettings = {} }: Ev
         rel="noopener noreferrer"
         className="block"
       >
-        <div className="flex items-center gap-2 md:gap-3">
-          {/* Source logo - far left (hidden on mobile) */}
-          {source && (
-            <div className="hidden md:flex flex-shrink-0 w-[60px] h-[60px] bg-gray-100 rounded overflow-hidden items-center justify-center">
-              {source.logoUrl ? (
-                <img
-                  src={source.logoUrl}
-                  alt=""
-                  className="w-full h-full object-contain"
-                  onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-                />
-              ) : (
-                <span className="text-[10px] text-gray-400 text-center px-1">{source.name.slice(0, 12)}</span>
-              )}
-            </div>
-          )}
+        <div className="flex items-start gap-2 md:gap-3">
+          {/* Left column: Time + Source logo + Source name (hidden on mobile) */}
+          <div className="hidden md:flex flex-col items-end flex-shrink-0 w-[85px]">
+            {/* Time */}
+            {timeStr && (
+              <p className="font-bold text-[#2e32ff] text-[12px] mb-1">
+                {timeStr}
+              </p>
+            )}
 
-          {/* Source name - vertical (hidden on mobile) */}
-          {source && (
-            <div className="hidden md:flex flex-shrink-0 items-center justify-center w-[24px] h-[100px]">
-              <span
-                className="font-bold text-[#232223] text-[14px] whitespace-nowrap"
-                style={{
-                  writingMode: 'vertical-rl',
-                  transform: 'rotate(180deg)',
-                }}
-              >
+            {/* Source logo */}
+            {source && (
+              <div className="w-[75px] h-[75px] bg-gray-100 overflow-hidden">
+                {source.logoUrl ? (
+                  <img
+                    src={source.logoUrl}
+                    alt=""
+                    className="w-full h-full object-contain"
+                    onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center">
+                    <span className="text-[10px] text-gray-400 text-center px-1">{source.name.slice(0, 12)}</span>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Source name */}
+            {source && (
+              <p className="font-medium text-[#232223] text-[8px] text-right mt-1 leading-tight w-full">
                 {source.name}
-              </span>
-            </div>
-          )}
+              </p>
+            )}
+          </div>
 
           {/* Squiggle box with content */}
           <div className="relative w-full md:w-[380px] min-h-[110px] md:min-h-[125px] flex-shrink-0">
@@ -235,16 +239,6 @@ export function EventCard({ event, source, onDelete, squiggleSettings = {} }: Ev
                 strokeLinejoin="round"
               />
             </svg>
-
-            {/* Time badge - upper left, rotated */}
-            {timeStr && (
-              <div
-                className="absolute -top-3 -left-2 bg-[#2e32ff] text-white text-[12px] font-bold px-2 py-1 rounded-md z-10"
-                style={{ transform: 'rotate(-20deg)' }}
-              >
-                {timeStr}
-              </div>
-            )}
 
             <div className="relative p-3 md:p-5 flex gap-2 md:gap-3">
               <div className="flex-1 min-w-0">
@@ -267,12 +261,11 @@ export function EventCard({ event, source, onDelete, squiggleSettings = {} }: Ev
                   </p>
                 )}
 
-                {/* Source name on mobile */}
-                {source && (
-                  <p className="md:hidden text-[11px] text-gray-500 mt-1">
-                    {source.name}
-                  </p>
-                )}
+                {/* Source name and time on mobile */}
+                <div className="md:hidden flex items-center gap-2 mt-1 text-[11px] text-gray-500">
+                  {timeStr && <span className="font-bold text-[#2e32ff]">{timeStr}</span>}
+                  {source && <span>{source.name}</span>}
+                </div>
               </div>
 
               {/* Event image thumbnail */}
