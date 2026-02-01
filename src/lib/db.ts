@@ -4,6 +4,18 @@ import { Source, Event } from './types';
 const sql = neon(process.env.DATABASE_URL!);
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 
+// Helper to convert date to ISO string (PostgreSQL returns Date objects)
+function toISOString(value: unknown): string {
+  if (value instanceof Date) return value.toISOString();
+  if (typeof value === 'string') return value;
+  return String(value);
+}
+
+function toISOStringOrNull(value: unknown): string | null {
+  if (value === null || value === undefined) return null;
+  return toISOString(value);
+}
+
 // Helper to convert snake_case DB rows to camelCase
 function sourceFromRow(row: Record<string, unknown>): Source {
   return {
@@ -11,15 +23,15 @@ function sourceFromRow(row: Record<string, unknown>): Source {
     name: row.name as string,
     url: row.url as string,
     enabled: row.enabled as boolean,
-    lastScrapedAt: row.last_scraped_at as string | null,
+    lastScrapedAt: toISOStringOrNull(row.last_scraped_at),
     lastContentHash: row.last_content_hash as string | null,
     scrapeIntervalHours: row.scrape_interval_hours as number,
     scrapeInstructions: row.scrape_instructions as string | null,
-    scrapingStartedAt: row.scraping_started_at as string | null,
+    scrapingStartedAt: toISOStringOrNull(row.scraping_started_at),
     tags: row.tags as string | null,
     logoUrl: row.logo_url as string | null,
     city: row.city as string | null,
-    createdAt: row.created_at as string,
+    createdAt: toISOString(row.created_at),
   };
 }
 
@@ -28,16 +40,16 @@ function eventFromRow(row: Record<string, unknown>): Event {
     id: row.id as string,
     sourceId: row.source_id as string,
     title: row.title as string,
-    startDate: row.start_date as string,
-    endDate: row.end_date as string | null,
+    startDate: toISOString(row.start_date),
+    endDate: toISOStringOrNull(row.end_date),
     location: row.location as string | null,
     description: row.description as string | null,
     url: row.url as string | null,
     imageUrl: row.image_url as string | null,
     rawData: typeof row.raw_data === 'string' ? row.raw_data : JSON.stringify(row.raw_data),
-    createdAt: row.created_at as string,
-    updatedAt: row.updated_at as string,
-    scrapedAt: row.scraped_at as string,
+    createdAt: toISOString(row.created_at),
+    updatedAt: toISOString(row.updated_at),
+    scrapedAt: toISOString(row.scraped_at),
   };
 }
 
