@@ -249,9 +249,15 @@ export function EventsPage({ initialEvents, initialSources }: EventsPageProps) {
         <div className="flex gap-6 h-full">
           {/* Left: Calendar and Sources - hidden on mobile */}
           <div className="hidden md:block flex-shrink-0 w-[220px] overflow-y-auto">
+            <Calendar
+              selectedDate={selectedDate}
+              onSelectDate={handleCalendarSelect}
+              eventDates={eventDates}
+            />
+
             {/* City Filter */}
             {cities.length > 0 && (
-              <div className="mb-4">
+              <div className="mt-4">
                 <h3 className="text-sm font-medium text-gray-700 mb-2">City</h3>
                 <div className="flex flex-wrap gap-1">
                   <button
@@ -280,12 +286,6 @@ export function EventsPage({ initialEvents, initialSources }: EventsPageProps) {
                 </div>
               </div>
             )}
-
-            <Calendar
-              selectedDate={selectedDate}
-              onSelectDate={handleCalendarSelect}
-              eventDates={eventDates}
-            />
 
             {/* Sources List */}
             <div className="mt-6">
