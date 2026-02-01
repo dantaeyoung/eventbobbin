@@ -6,6 +6,7 @@ import { Event, Source } from '@/lib/types';
 import { EventList } from '@/components/EventList';
 import { Calendar } from '@/components/Calendar';
 import { TagFilter } from '@/components/TagFilter';
+import { AppNav } from '@/components/TabNav';
 import { api } from '@/lib/api';
 import { fetchSquiggleSettings, setSquiggleSettingsCache, SquiggleSettings } from '@/lib/squiggleSettings';
 
@@ -188,10 +189,13 @@ export function EventsPage({ initialEvents, initialSources }: EventsPageProps) {
   return (
     <div className="h-screen flex flex-col bg-[#FFF8F0] overflow-hidden">
       <header className="bg-white border-b border-gray-200 flex-shrink-0">
-        <div className="max-w-6xl mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <h1 className="text-xl font-bold text-gray-900">EventBobbin</h1>
-            <div className="flex items-center gap-2 md:gap-3">
+        <div className="max-w-6xl mx-auto px-4">
+          <div className="flex items-end justify-between pt-3">
+            <div className="flex items-end gap-4">
+              <h1 className="text-xl font-bold text-gray-900 pb-2">EventBobbin</h1>
+              <AppNav />
+            </div>
+            <div className="flex items-center gap-2 pb-2">
               <button
                 onClick={() => setShowHelp(true)}
                 className="w-6 h-6 rounded-full bg-gray-100 text-gray-600 hover:bg-gray-200 text-sm font-medium"
@@ -204,25 +208,7 @@ export function EventsPage({ initialEvents, initialSources }: EventsPageProps) {
                 className="text-sm text-gray-600 hover:text-gray-900 hidden md:inline"
                 title="Subscribe to calendar feed"
               >
-                📅 Subscribe
-              </a>
-              <a
-                href="/squiggles"
-                className="text-sm text-gray-600 hover:text-gray-900 hidden md:inline"
-              >
-                Squiggles
-              </a>
-              <a
-                href="/sources"
-                className="text-sm text-gray-600 hover:text-gray-900"
-              >
-                Sources
-              </a>
-              <a
-                href="/stats"
-                className="text-sm text-gray-600 hover:text-gray-900 hidden md:inline"
-              >
-                Stats
+                📅
               </a>
             </div>
           </div>

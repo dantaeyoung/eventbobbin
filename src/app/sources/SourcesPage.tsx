@@ -19,6 +19,7 @@ import { ToastContainer, useToasts } from '@/components/Toast';
 import { TagInput } from '@/components/TagInput';
 import { getTagColor } from '@/lib/tagColors';
 import { api } from '@/lib/api';
+import { AppNav } from '@/components/TabNav';
 
 function formatElapsed(startTime: string): string {
   const seconds = Math.floor((Date.now() - new Date(startTime).getTime()) / 1000);
@@ -294,19 +295,11 @@ export function SourcesPage({ initialSources }: SourcesPageProps) {
   return (
     <div className="min-h-screen bg-[#FFF8F0]">
       <header className="bg-white border-b border-gray-200">
-        <div className="max-w-3xl mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <h1 className="text-xl font-bold text-gray-900">Manage Sources</h1>
-            <div className="flex gap-4">
-              <a href="/" className="text-sm text-gray-600 hover:text-gray-900">
-                ← Back to Events
-              </a>
-              <a href="/squiggles" className="text-sm text-gray-600 hover:text-gray-900">
-                Squiggles
-              </a>
-              <a href="/stats" className="text-sm text-gray-600 hover:text-gray-900">
-                Stats
-              </a>
+        <div className="max-w-3xl mx-auto px-4">
+          <div className="flex items-end justify-between pt-3">
+            <div className="flex items-end gap-4">
+              <h1 className="text-xl font-bold text-gray-900 pb-2">EventBobbin</h1>
+              <AppNav />
             </div>
           </div>
         </div>
