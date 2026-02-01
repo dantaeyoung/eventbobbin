@@ -48,11 +48,13 @@ export function SourcesPage({ initialSources }: SourcesPageProps) {
   const [, setTick] = useState(0); // Force re-render for timer
   const [sourceSort, setSourceSort] = useState<SourceSort>('alpha');
   const [scrapingAll, setScrapingAll] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const { toasts, addToast, removeToast } = useToasts();
 
   // Load sort preference on mount
   useEffect(() => {
     setSourceSort(loadSourceSort());
+    setMounted(true);
   }, []);
 
   // Save sort preference when it changes
@@ -605,7 +607,7 @@ export function SourcesPage({ initialSources }: SourcesPageProps) {
                     className="px-3 py-1.5 text-sm bg-gray-100 rounded-md hover:bg-gray-200 disabled:opacity-50"
                   >
                     {source.scrapingStartedAt
-                      ? `Scraping... ${formatElapsed(source.scrapingStartedAt)}`
+                      ? `Scraping...${mounted ? ` ${formatElapsed(source.scrapingStartedAt)}` : ''}`
                       : 'Scrape Now'}
                   </button>
                   <button
