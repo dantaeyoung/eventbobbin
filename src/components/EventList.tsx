@@ -121,7 +121,7 @@ export function EventList({ events, sources, squiggleSettings, onEventClick, sel
         const date = new Date(dateKey + 'T12:00:00'); // Noon to avoid timezone issues
         const dateLabel = format(date, 'EEEE, MMM d');
 
-        const squigglePath = generateContainerSquiggle(600, 400, dateKey, { x: 0.1, y: 0.15 });
+        const squigglePath = generateContainerSquiggle(600, 400, dateKey, { x: 0.05, y: 0.08 });
 
         return (
           <div key={dateKey}>
