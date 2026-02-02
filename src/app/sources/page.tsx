@@ -1,9 +1,5 @@
-import { SourcesPage } from './SourcesPage';
-import { getAllSources } from '@/lib/db';
+import { App } from '../App';
 
-export const dynamic = 'force-dynamic';
-
-export default async function Sources() {
-  const sources = await getAllSources();
-  return <SourcesPage initialSources={sources} />;
+export default function Sources() {
+  return <App />;
 }

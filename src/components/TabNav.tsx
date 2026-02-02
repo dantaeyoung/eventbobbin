@@ -1,38 +1,41 @@
 'use client';
 
-import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import type { TabId } from '@/app/App';
 
 interface Tab {
   label: string;
-  href: string;
+  id: TabId;
   hideOnMobile?: boolean;
 }
 
 interface TabNavProps {
   tabs: Tab[];
+  onNavigate: (tab: TabId) => void;
+  activeTab: TabId;
 }
 
 function ManilaTab({
   label,
-  href,
+  id,
   isActive,
   hideOnMobile,
   width,
+  onNavigate,
 }: {
   label: string;
-  href: string;
+  id: TabId;
   isActive: boolean;
   hideOnMobile?: boolean;
   width: number;
+  onNavigate: (tab: TabId) => void;
 }) {
   const height = 34; // Fixed height for all tabs
 
   return (
-    <Link
-      href={href}
+    <button
+      onClick={() => onNavigate(id)}
       className={`
-        relative block
+        relative block cursor-pointer
         ${hideOnMobile ? 'hidden md:block' : ''}
         ${isActive ? 'z-10' : 'z-0'}
       `}
@@ -84,7 +87,7 @@ function ManilaTab({
       >
         {label}
       </span>
-    </Link>
+    </button>
   );
 }
 
@@ -96,38 +99,32 @@ const TAB_WIDTHS: Record<string, number> = {
   'Stats': 64,
 };
 
-export function TabNav({ tabs }: TabNavProps) {
-  const pathname = usePathname();
-
+export function TabNav({ tabs, onNavigate, activeTab }: TabNavProps) {
   return (
     <div className="flex items-end h-[34px]">
-      {tabs.map((tab) => {
-        const isActive = pathname === tab.href ||
-          (tab.href === '/' && pathname === '/');
-
-        return (
-          <ManilaTab
-            key={tab.href}
-            label={tab.label}
-            href={tab.href}
-            isActive={isActive}
-            hideOnMobile={tab.hideOnMobile}
-            width={TAB_WIDTHS[tab.label] || 80}
-          />
-        );
-      })}
+      {tabs.map((tab) => (
+        <ManilaTab
+          key={tab.id}
+          label={tab.label}
+          id={tab.id}
+          isActive={activeTab === tab.id}
+          hideOnMobile={tab.hideOnMobile}
+          width={TAB_WIDTHS[tab.label] || 80}
+          onNavigate={onNavigate}
+        />
+      ))}
     </div>
   );
 }
 
 // Pre-configured nav for the app
-export function AppNav() {
+export function AppNav({ onNavigate, activeTab }: { onNavigate: (tab: TabId) => void; activeTab: TabId }) {
   const tabs: Tab[] = [
-    { label: 'Events', href: '/' },
-    { label: 'Sources', href: '/sources' },
-    { label: 'Squiggles', href: '/squiggles', hideOnMobile: true },
-    { label: 'Stats', href: '/stats', hideOnMobile: true },
+    { label: 'Events', id: 'events' },
+    { label: 'Sources', id: 'sources' },
+    { label: 'Squiggles', id: 'squiggles', hideOnMobile: true },
+    { label: 'Stats', id: 'stats', hideOnMobile: true },
   ];
 
-  return <TabNav tabs={tabs} />;
+  return <TabNav tabs={tabs} onNavigate={onNavigate} activeTab={activeTab} />;
 }
