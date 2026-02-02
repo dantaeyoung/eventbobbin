@@ -10,6 +10,7 @@
     "scrape": "tsx scripts/scrape.ts",
     "seed": "tsx scripts/seed.ts",
     "db:add-logo-column": "tsx scripts/add-logo-data-column.ts",
+    "db:add-numeric-id": "tsx scripts/add-numeric-id-column.ts",
     "cache-logos": "tsx scripts/cache-logos.ts",
     "update-times": "tsx scripts/update-event-times.ts",
     "postinstall": "npx playwright install chromium"

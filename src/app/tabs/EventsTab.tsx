@@ -14,25 +14,83 @@ const CITY_KEY = 'eventbobbin-city';
 const SOURCES_KEY = 'eventbobbin-sources';
 const TAGS_KEY = 'eventbobbin-tags';
 
-function getCityFromHash(): string | null {
-  if (typeof window === 'undefined') return null;
+// Parse hash like "#NYC?s=1f" or "#?s=1f" or "#NYC"
+function parseHash(): { city: string | null; sourcesBitfield: string | null } {
+  if (typeof window === 'undefined') return { city: null, sourcesBitfield: null };
   const hash = window.location.hash.slice(1); // Remove #
-  if (hash && hash !== 'events') {
-    return decodeURIComponent(hash);
+  if (!hash) return { city: null, sourcesBitfield: null };
+
+  const [cityPart, queryPart] = hash.split('?');
+  const city = cityPart ? decodeURIComponent(cityPart) : null;
+
+  let sourcesBitfield: string | null = null;
+  if (queryPart) {
+    const params = new URLSearchParams(queryPart);
+    sourcesBitfield = params.get('s');
   }
-  return null;
+
+  return { city, sourcesBitfield };
+}
+
+// Encode selected source IDs to hex bitfield using numericId
+function encodeSourcesBitfield(selectedIds: string[], allSources: Source[]): string {
+  if (selectedIds.length === 0) return '';
+
+  let bitfield = BigInt(0);
+  for (const id of selectedIds) {
+    const source = allSources.find(s => s.id === id);
+    if (source?.numericId) {
+      // numericId is 1-indexed, so bit position is numericId - 1
+      bitfield |= BigInt(1) << BigInt(source.numericId - 1);
+    }
+  }
+
+  return bitfield.toString(16);
+}
+
+// Decode hex bitfield to source IDs using numericId
+function decodeSourcesBitfield(hex: string, allSources: Source[]): string[] {
+  if (!hex) return [];
+
+  try {
+    const bitfield = BigInt('0x' + hex);
+    const selectedIds: string[] = [];
+
+    for (const source of allSources) {
+      if (source.numericId) {
+        const bit = BigInt(1) << BigInt(source.numericId - 1);
+        if ((bitfield & bit) !== BigInt(0)) {
+          selectedIds.push(source.id);
+        }
+      }
+    }
+
+    return selectedIds;
+  } catch {
+    return [];
+  }
+}
+
+// Build URL hash from city and sources
+function buildHash(city: string | null, sourcesBitfield: string): string {
+  const cityPart = city ? encodeURIComponent(city) : '';
+  if (sourcesBitfield) {
+    return `#${cityPart}?s=${sourcesBitfield}`;
+  }
+  return cityPart ? `#${cityPart}` : '';
 }
 
 function loadCity(): string | null {
   if (typeof window === 'undefined') return null;
   // First check URL hash, then localStorage
-  const hashCity = getCityFromHash();
-  if (hashCity) return hashCity;
+  const { city } = parseHash();
+  if (city) return city;
   return localStorage.getItem(CITY_KEY);
 }
 
 function loadSources(): string[] {
   if (typeof window === 'undefined') return [];
+  // Note: URL-based sources loaded later once sources data is available
   const stored = localStorage.getItem(SOURCES_KEY);
   if (stored) {
     try { return JSON.parse(stored); } catch { return []; }
@@ -141,40 +199,59 @@ export function EventsTab({ sources, events, setEvents, allEvents, setAllEvents,
     });
   }, []);
 
+  // Update URL hash when city or sources change
   useEffect(() => {
     if (mounted) {
+      // Persist to localStorage
       if (selectedCity) {
         localStorage.setItem(CITY_KEY, selectedCity);
-        // Update URL hash
-        window.history.replaceState(null, '', `#${encodeURIComponent(selectedCity)}`);
       } else {
         localStorage.removeItem(CITY_KEY);
-        // Clear hash
-        window.history.replaceState(null, '', window.location.pathname);
       }
-    }
-  }, [selectedCity, mounted]);
-
-  // Handle browser back/forward
-  useEffect(() => {
-    const handleHashChange = () => {
-      const hashCity = getCityFromHash();
-      setSelectedCity(hashCity);
-    };
-
-    window.addEventListener('hashchange', handleHashChange);
-    return () => window.removeEventListener('hashchange', handleHashChange);
-  }, []);
-
-  useEffect(() => {
-    if (mounted) {
       if (selectedSources.length > 0) {
         localStorage.setItem(SOURCES_KEY, JSON.stringify(selectedSources));
       } else {
         localStorage.removeItem(SOURCES_KEY);
       }
+
+      // Update URL hash with both city and sources
+      const sourcesBitfield = encodeSourcesBitfield(selectedSources, sources);
+      const hash = buildHash(selectedCity, sourcesBitfield);
+      if (hash) {
+        window.history.replaceState(null, '', hash);
+      } else {
+        window.history.replaceState(null, '', window.location.pathname);
+      }
     }
-  }, [selectedSources, mounted]);
+  }, [selectedCity, selectedSources, sources, mounted]);
+
+  // Handle browser back/forward
+  useEffect(() => {
+    const handleHashChange = () => {
+      const { city, sourcesBitfield } = parseHash();
+      setSelectedCity(city);
+      if (sourcesBitfield && sources.length > 0) {
+        const decodedSources = decodeSourcesBitfield(sourcesBitfield, sources);
+        setSelectedSources(decodedSources);
+      }
+    };
+
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, [sources]);
+
+  // Initialize sources from URL when sources data becomes available
+  useEffect(() => {
+    if (sources.length > 0) {
+      const { sourcesBitfield } = parseHash();
+      if (sourcesBitfield) {
+        const decodedSources = decodeSourcesBitfield(sourcesBitfield, sources);
+        if (decodedSources.length > 0) {
+          setSelectedSources(decodedSources);
+        }
+      }
+    }
+  }, [sources.length]); // Only run when sources first load
 
   useEffect(() => {
     if (mounted) {

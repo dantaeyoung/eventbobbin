@@ -2,6 +2,7 @@ import { pgTable, text, boolean, integer, timestamp, decimal, serial, unique } f
 
 export const sources = pgTable('sources', {
   id: text('id').primaryKey(),
+  numericId: serial('numeric_id').notNull().unique(), // Auto-increment ID for URL encoding (never reused)
   name: text('name').notNull(),
   url: text('url').notNull().unique(),
   enabled: boolean('enabled').notNull().default(true),

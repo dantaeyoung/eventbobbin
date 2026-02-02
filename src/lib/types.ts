@@ -1,5 +1,6 @@
 export interface Source {
   id: string;
+  numericId?: number; // Auto-increment ID for URL encoding (never reused, auto-generated)
   name: string;
   url: string;
   enabled: boolean;
