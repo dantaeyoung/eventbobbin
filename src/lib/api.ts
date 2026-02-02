@@ -18,6 +18,11 @@ export async function apiFetch<T>(
     throw new Error(`API error: ${res.status} ${res.statusText}`);
   }
 
+  // Handle 204 No Content responses
+  if (res.status === 204) {
+    return undefined as T;
+  }
+
   // Check if response is actually JSON before parsing
   const text = await res.text();
   if (!text || (!text.startsWith('{') && !text.startsWith('['))) {
