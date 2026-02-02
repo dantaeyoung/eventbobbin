@@ -80,10 +80,8 @@ function ManilaTab({
         )}
       </svg>
       <span
-        className={`
-          absolute inset-0 flex items-center justify-center text-sm font-medium
-          ${isActive ? 'text-gray-900' : 'text-gray-500 hover:text-gray-700'}
-        `}
+        className="absolute inset-0 flex items-center justify-center text-sm font-medium"
+        style={{ color: isActive ? 'var(--color-text)' : 'var(--color-text-muted)' }}
       >
         {label}
       </span>

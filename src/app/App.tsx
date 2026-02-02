@@ -111,11 +111,11 @@ export function App() {
     return (
       <div className="h-screen flex flex-col overflow-hidden">
         <DitheredBackground />
-        <header className="bg-white border-b border-gray-200 flex-shrink-0">
+        <header className="border-b flex-shrink-0" style={{ backgroundColor: 'var(--color-card-bg)', borderColor: 'var(--color-card-stroke)' }}>
           <div className="max-w-6xl mx-auto px-4">
             <div className="flex items-end justify-between pt-3">
               <div className="flex items-end gap-4">
-                <h1 className="text-xl font-bold text-gray-900 pb-2">EventBobbin</h1>
+                <h1 className="text-xl font-bold pb-2" style={{ color: 'var(--color-text)' }}>EventBobbin</h1>
                 <AppNav onNavigate={navigateToTab} activeTab={activeTab} />
               </div>
             </div>
@@ -131,11 +131,11 @@ export function App() {
   return (
     <div className="h-screen flex flex-col overflow-hidden">
       <DitheredBackground />
-      <header className="bg-white border-b border-gray-200 flex-shrink-0">
+      <header className="border-b flex-shrink-0" style={{ backgroundColor: 'var(--color-card-bg)', borderColor: 'var(--color-card-stroke)' }}>
         <div className="max-w-6xl mx-auto px-4">
           <div className="flex items-end justify-between pt-3">
             <div className="flex items-end gap-4">
-              <h1 className="text-xl font-bold text-gray-900 pb-2">EventBobbin</h1>
+              <h1 className="text-xl font-bold pb-2" style={{ color: 'var(--color-text)' }}>EventBobbin</h1>
               <AppNav onNavigate={navigateToTab} activeTab={activeTab} />
             </div>
           </div>

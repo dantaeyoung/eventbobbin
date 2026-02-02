@@ -105,7 +105,7 @@ export function EventList({ events, sources, squiggleSettings, onEventClick, sel
 
   if (events.length === 0) {
     return (
-      <div className="text-center py-12 text-gray-500">
+      <div className="text-center py-12" style={{ color: 'var(--color-text-muted)' }}>
         No events found. Try adding some sources!
       </div>
     );

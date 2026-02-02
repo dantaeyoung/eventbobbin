@@ -270,26 +270,26 @@ export function EventCard({ event, source, squiggleSettings = {}, onClick, isSel
             <div className="relative p-4 md:p-6 flex gap-2 md:gap-3 items-center min-h-[110px] md:min-h-[125px]">
               <div className="flex-1 min-w-0">
                 {/* Event title */}
-                <h3 className="font-bold text-black text-[14px] mb-2">
+                <h3 className="font-bold text-[14px] mb-2" style={{ color: 'var(--color-text)' }}>
                   {event.title}
                 </h3>
 
                 {/* Description */}
                 {event.description && (
-                  <p className="text-[12px] text-black font-normal mb-1 line-clamp-2">
+                  <p className="text-[12px] font-normal mb-1 line-clamp-2" style={{ color: 'var(--color-text)' }}>
                     {event.description}
                   </p>
                 )}
 
                 {/* Location */}
                 {event.location && (
-                  <p className="text-[12px] text-black font-normal">
+                  <p className="text-[12px] font-normal" style={{ color: 'var(--color-text)' }}>
                     {event.location}
                   </p>
                 )}
 
                 {/* Source name and time on mobile */}
-                <div className="md:hidden flex items-center gap-2 mt-1 text-[11px] text-gray-500">
+                <div className="md:hidden flex items-center gap-2 mt-1 text-[11px]" style={{ color: 'var(--color-text-muted)' }}>
                   {timeStr && (
                     <Tooltip text="This time was scraped automatically - double check the source to be sure!">
                       <span className="font-bold" style={{ color: 'var(--color-accent)' }}>
