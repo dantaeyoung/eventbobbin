@@ -96,6 +96,7 @@ const TAB_WIDTHS: Record<string, number> = {
   'Events': 72,
   'Sources': 80,
   'Squiggles': 90,
+  'Colors': 72,
   'Stats': 64,
 };
 
@@ -123,6 +124,7 @@ export function AppNav({ onNavigate, activeTab }: { onNavigate: (tab: TabId) => 
     { label: 'Events', id: 'events' },
     { label: 'Sources', id: 'sources' },
     { label: 'Squiggles', id: 'squiggles', hideOnMobile: true },
+    { label: 'Colors', id: 'colors', hideOnMobile: true },
     { label: 'Stats', id: 'stats', hideOnMobile: true },
   ];
 

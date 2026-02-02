@@ -12,15 +12,17 @@ import { getStoredSchemeId, getSchemeById, applyColorScheme } from '@/lib/colorS
 import { EventsTab } from './tabs/EventsTab';
 import { SourcesTab } from './tabs/SourcesTab';
 import { SquigglesTab } from './tabs/SquigglesTab';
+import { ColorsTab } from './tabs/ColorsTab';
 import { StatsTab } from './tabs/StatsTab';
 
-export type TabId = 'events' | 'sources' | 'squiggles' | 'stats';
+export type TabId = 'events' | 'sources' | 'squiggles' | 'colors' | 'stats';
 
 // Map URL paths to tab IDs
 const PATH_TO_TAB: Record<string, TabId> = {
   '/': 'events',
   '/sources': 'sources',
   '/squiggles': 'squiggles',
+  '/colors': 'colors',
   '/stats': 'stats',
 };
 
@@ -28,6 +30,7 @@ const TAB_TO_PATH: Record<TabId, string> = {
   events: '/',
   sources: '/sources',
   squiggles: '/squiggles',
+  colors: '/colors',
   stats: '/stats',
 };
 
@@ -159,6 +162,9 @@ export function App() {
       )}
       {activeTab === 'squiggles' && (
         <SquigglesTab sources={sources} />
+      )}
+      {activeTab === 'colors' && (
+        <ColorsTab />
       )}
       {activeTab === 'stats' && (
         <StatsTab sources={sources} />
