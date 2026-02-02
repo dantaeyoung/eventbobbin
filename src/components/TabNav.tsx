@@ -30,6 +30,7 @@ function ManilaTab({
   onNavigate: (tab: TabId) => void;
 }) {
   const height = 34; // Fixed height for all tabs
+  const overflow = isActive ? 3 : 0; // Active tab extends below to cover header border
 
   return (
     <button
@@ -41,14 +42,15 @@ function ManilaTab({
       `}
       style={{
         width,
-        height,
+        height: height + overflow,
         marginRight: '-6px', // Overlap tabs slightly
+        marginBottom: -overflow, // Pull back up so layout isn't affected
       }}
     >
       <svg
         width={width}
-        height={height}
-        viewBox={`0 0 ${width} ${height}`}
+        height={height + overflow}
+        viewBox={`0 0 ${width} ${height + overflow}`}
         className="absolute inset-0"
         preserveAspectRatio="none"
       >
@@ -67,15 +69,14 @@ function ManilaTab({
           stroke="var(--color-card-stroke)"
           strokeWidth="1.5"
         />
-        {/* Hide bottom border for active tab */}
+        {/* Cover header border for active tab */}
         {isActive && (
-          <line
-            x1="1"
-            y1={height - 0.5}
-            x2={width - 1}
-            y2={height - 0.5}
-            stroke="var(--color-background)"
-            strokeWidth="3"
+          <rect
+            x="1"
+            y={height - 1}
+            width={width - 2}
+            height={overflow + 2}
+            fill="var(--color-background)"
           />
         )}
       </svg>
