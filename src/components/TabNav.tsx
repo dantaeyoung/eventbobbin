@@ -63,7 +63,7 @@ function ManilaTab({
             L ${width} ${height}
             Z
           `}
-          fill={isActive ? 'var(--color-card-bg)' : '#f5f5f4'}
+          fill={isActive ? 'var(--color-background)' : '#f5f5f4'}
           stroke="var(--color-card-stroke)"
           strokeWidth="1.5"
         />
@@ -74,7 +74,7 @@ function ManilaTab({
             y1={height - 0.5}
             x2={width - 1}
             y2={height - 0.5}
-            stroke="var(--color-card-bg)"
+            stroke="var(--color-background)"
             strokeWidth="3"
           />
         )}
