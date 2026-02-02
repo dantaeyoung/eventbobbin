@@ -65,19 +65,29 @@ function stringToPastelColor(str: string): string {
 }
 
 
+// Check if any filters are saved (call once at init)
+function hasStoredFilters(): boolean {
+  if (typeof window === 'undefined') return false;
+  return !!(localStorage.getItem(CITY_KEY) || localStorage.getItem(SOURCES_KEY) || localStorage.getItem(TAGS_KEY));
+}
+
 export function EventsPage({ initialEvents, initialSources }: EventsPageProps) {
-  const [events, setEvents] = useState<Event[]>(initialEvents);
+  // Initialize filters synchronously from localStorage to avoid flash
+  const [selectedSources, setSelectedSources] = useState<string[]>(loadSources);
+  const [selectedTags, setSelectedTags] = useState<string[]>(loadTags);
+  const [selectedCity, setSelectedCity] = useState<string | null>(loadCity);
+
+  // If filters are saved, don't use initialEvents - wait for filtered fetch
+  const [events, setEvents] = useState<Event[]>(() => hasStoredFilters() ? [] : initialEvents);
   const [allEvents, setAllEvents] = useState<Event[]>(initialEvents);
   const [sources] = useState<Source[]>(initialSources);
   const [squiggleSettings, setSquiggleSettings] = useState<SquiggleSettings>({});
-  const [selectedSources, setSelectedSources] = useState<string[]>([]);
-  const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [mounted, setMounted] = useState(false);
-  const [loading, setLoading] = useState(false);
+  // Start loading if we have filters (need to fetch filtered events)
+  const [loading, setLoading] = useState(hasStoredFilters);
   const [showHelp, setShowHelp] = useState(false);
   const [eventToDelete, setEventToDelete] = useState<Event | null>(null);
-  const [selectedCity, setSelectedCity] = useState<string | null>(null);
   const [showMobileFilters, setShowMobileFilters] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
 
@@ -157,11 +167,9 @@ export function EventsPage({ initialEvents, initialSources }: EventsPageProps) {
     return counts;
   }, [allEvents]);
 
-  // Load saved filters from localStorage on mount
+  // On mount: mark as mounted and fetch data
   useEffect(() => {
-    setSelectedCity(loadCity());
-    setSelectedSources(loadSources());
-    setSelectedTags(loadTags());
+    // Small delay to ensure localStorage is read before render
     setMounted(true);
     // Fetch all future events for calendar dots
     api.getEvents({ from: format(startOfDay(new Date()), "yyyy-MM-dd'T'HH:mm:ss") })
@@ -261,6 +269,28 @@ export function EventsPage({ initialEvents, initialSources }: EventsPageProps) {
     }
     setEventToDelete(null);
   };
+
+  // Don't render until client-side to avoid localStorage hydration flash
+  if (!mounted) {
+    return (
+      <div className="h-screen flex flex-col overflow-hidden">
+        <DitheredBackground />
+        <header className="bg-white border-b border-gray-200 flex-shrink-0">
+          <div className="max-w-6xl mx-auto px-4">
+            <div className="flex items-end justify-between pt-3">
+              <div className="flex items-end gap-4">
+                <h1 className="text-xl font-bold text-gray-900 pb-2">EventBobbin</h1>
+                <AppNav />
+              </div>
+            </div>
+          </div>
+        </header>
+        <main className="flex-1 flex items-center justify-center">
+          <div className="text-gray-400">Loading...</div>
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="h-screen flex flex-col overflow-hidden">
