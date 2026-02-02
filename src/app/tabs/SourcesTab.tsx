@@ -46,6 +46,9 @@ export function SourcesTab({ sources, setSources, refreshSources }: SourcesTabPr
   const [sourceSort, setSourceSort] = useState<SourceSort>('alpha');
   const [scrapingAll, setScrapingAll] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [showAddCityModal, setShowAddCityModal] = useState(false);
+  const [newCityName, setNewCityName] = useState('');
+  const [addCityTarget, setAddCityTarget] = useState<'add' | 'edit'>('add');
   const { toasts, addToast, removeToast } = useToasts();
 
   useEffect(() => {
@@ -201,11 +204,21 @@ export function SourcesTab({ sources, setSources, refreshSources }: SourcesTabPr
             <div className="flex gap-3">
               <input type="text" placeholder="Source name" value={name} onChange={(e) => setName(e.target.value)} className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-900" />
               <input type="url" placeholder="https://example.com/events" value={url} onChange={(e) => setUrl(e.target.value)} className="flex-[2] px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-900" />
-              <select value={city} onChange={(e) => setCity(e.target.value)} className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white">
+              <select
+                value={city}
+                onChange={(e) => {
+                  if (e.target.value === '__add_city__') {
+                    setAddCityTarget('add');
+                    setShowAddCityModal(true);
+                  } else {
+                    setCity(e.target.value);
+                  }
+                }}
+                className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white"
+              >
                 <option value="">City</option>
-                <option value="NYC">NYC</option>
-                <option value="LA">LA</option>
-                {allCities.filter(c => c !== 'NYC' && c !== 'LA').map((c) => <option key={c} value={c}>{c}</option>)}
+                {allCities.map((c) => <option key={c} value={c}>{c}</option>)}
+                <option value="__add_city__">+ Add City...</option>
               </select>
             </div>
             <div className="flex gap-3">
@@ -235,11 +248,24 @@ export function SourcesTab({ sources, setSources, refreshSources }: SourcesTabPr
                       <div className="flex gap-3">
                         <input type="text" value={editForm.name} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} placeholder="Source name" className="flex-1 px-3 py-2 border border-gray-300 rounded-md" autoFocus />
                         <input type="url" value={editForm.url} onChange={(e) => setEditForm({ ...editForm, url: e.target.value })} placeholder="URL" className="flex-[2] px-3 py-2 border border-gray-300 rounded-md" />
-                        <select value={editForm.city} onChange={(e) => setEditForm({ ...editForm, city: e.target.value })} className="px-3 py-2 border border-gray-300 rounded-md bg-white">
+                        <select
+                          value={editForm.city}
+                          onChange={(e) => {
+                            if (e.target.value === '__add_city__') {
+                              setAddCityTarget('edit');
+                              setShowAddCityModal(true);
+                            } else {
+                              setEditForm({ ...editForm, city: e.target.value });
+                            }
+                          }}
+                          className="px-3 py-2 border border-gray-300 rounded-md bg-white"
+                        >
                           <option value="">City</option>
-                          <option value="NYC">NYC</option>
-                          <option value="LA">LA</option>
-                          {allCities.filter(c => c !== 'NYC' && c !== 'LA').map((c) => <option key={c} value={c}>{c}</option>)}
+                          {allCities.map((c) => <option key={c} value={c}>{c}</option>)}
+                          {editForm.city && !allCities.includes(editForm.city) && (
+                            <option value={editForm.city}>{editForm.city}</option>
+                          )}
+                          <option value="__add_city__">+ Add City...</option>
                         </select>
                       </div>
                       <div className="flex gap-3">
@@ -307,6 +333,62 @@ export function SourcesTab({ sources, setSources, refreshSources }: SourcesTabPr
         </div>
       </div>
       <ToastContainer toasts={toasts} onRemove={removeToast} />
+
+      {/* Add City Modal */}
+      {showAddCityModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg max-w-sm w-full p-6">
+            <h2 className="text-lg font-bold text-gray-900 mb-4">Add New City</h2>
+            <input
+              type="text"
+              placeholder="City name (e.g., Chicago)"
+              value={newCityName}
+              onChange={(e) => setNewCityName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && newCityName.trim()) {
+                  if (addCityTarget === 'add') {
+                    setCity(newCityName.trim());
+                  } else {
+                    setEditForm({ ...editForm, city: newCityName.trim() });
+                  }
+                  setNewCityName('');
+                  setShowAddCityModal(false);
+                }
+              }}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-900 mb-4"
+              autoFocus
+            />
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  setNewCityName('');
+                  setShowAddCityModal(false);
+                }}
+                className="flex-1 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  if (newCityName.trim()) {
+                    if (addCityTarget === 'add') {
+                      setCity(newCityName.trim());
+                    } else {
+                      setEditForm({ ...editForm, city: newCityName.trim() });
+                    }
+                    setNewCityName('');
+                    setShowAddCityModal(false);
+                  }
+                }}
+                disabled={!newCityName.trim()}
+                className="flex-1 py-2 bg-gray-900 text-white rounded-md hover:bg-gray-800 disabled:opacity-50"
+              >
+                Add City
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
