@@ -204,7 +204,7 @@ export function EventCard({ event, source, squiggleSettings = {}, onClick, isSel
           {/* Left column: Time + Source logo + Source name (hidden on mobile) */}
           <div className="hidden md:flex flex-col items-end flex-shrink-0 w-[85px]">
             {/* Time - always takes space for consistent layout */}
-            <p className="font-bold text-[#2e32ff] text-[12px] mb-1 h-[16px]">
+            <p className="font-bold text-[12px] mb-1 h-[16px]" style={{ color: 'var(--color-accent)' }}>
               {timeStr ? (
                 <Tooltip text="This time was scraped automatically - double check the source to be sure!">
                   {timeStr}<span className="ml-0.5">?</span>
@@ -256,8 +256,8 @@ export function EventCard({ event, source, squiggleSettings = {}, onClick, isSel
             >
               <path
                 d={wigglyPath}
-                fill={isSelected ? '#e0f2fe' : 'white'}
-                stroke={isSelected ? '#7dd3fc' : '#d3d3d3'}
+                fill={isSelected ? 'var(--color-accent-light)' : 'var(--color-card-bg)'}
+                stroke={isSelected ? 'var(--color-accent-stroke)' : 'var(--color-card-stroke)'}
                 strokeWidth="2"
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -292,7 +292,7 @@ export function EventCard({ event, source, squiggleSettings = {}, onClick, isSel
                 <div className="md:hidden flex items-center gap-2 mt-1 text-[11px] text-gray-500">
                   {timeStr && (
                     <Tooltip text="This time was scraped automatically - double check the source to be sure!">
-                      <span className="font-bold text-[#2e32ff]">
+                      <span className="font-bold" style={{ color: 'var(--color-accent)' }}>
                         {timeStr}<span className="ml-0.5">?</span>
                       </span>
                     </Tooltip>

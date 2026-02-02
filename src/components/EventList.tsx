@@ -121,12 +121,12 @@ export function EventList({ events, sources, squiggleSettings, onEventClick, sel
         const date = new Date(dateKey + 'T12:00:00'); // Noon to avoid timezone issues
         const dateLabel = format(date, 'EEEE, MMM d');
 
-        const squigglePath = generateContainerSquiggle(600, 400, dateKey, { x: 0.25, y: 0.25 });
+        const squigglePath = generateContainerSquiggle(600, 400, dateKey, { x: 0.1, y: 0.15 });
 
         return (
           <div key={dateKey}>
             {/* Date header */}
-            <h2 className="text-[#2e32ff] font-bold text-[16px] mb-3">
+            <h2 className="font-bold text-[16px] mb-3" style={{ color: 'var(--color-accent)' }}>
               {dateLabel}
             </h2>
 
@@ -139,8 +139,8 @@ export function EventList({ events, sources, squiggleSettings, onEventClick, sel
               >
                 <path
                   d={squigglePath}
-                  fill="#e8e8ff"
-                  stroke="#c8c8ff"
+                  fill="var(--color-accent-light)"
+                  stroke="var(--color-accent-stroke)"
                   strokeWidth="2"
                   strokeLinecap="round"
                   strokeLinejoin="round"

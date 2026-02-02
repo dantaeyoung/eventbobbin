@@ -6,6 +6,7 @@ import { Source, Event } from '@/lib/types';
 import { api } from '@/lib/api';
 import { AppNav } from '@/components/TabNav';
 import { DitheredBackground } from '@/components/DitheredBackground';
+import { getStoredSchemeId, getSchemeById, applyColorScheme } from '@/lib/colorSchemes';
 
 // Import tab content components
 import { EventsTab } from './tabs/EventsTab';
@@ -41,11 +42,17 @@ export function App() {
   // Current tab
   const [activeTab, setActiveTab] = useState<TabId>('events');
 
-  // Initialize tab from URL on mount
+  // Initialize tab from URL and color scheme on mount
   useEffect(() => {
     const path = window.location.pathname;
     const tab = PATH_TO_TAB[path] || 'events';
     setActiveTab(tab);
+
+    // Apply stored color scheme
+    const schemeId = getStoredSchemeId();
+    const scheme = getSchemeById(schemeId);
+    applyColorScheme(scheme);
+
     setMounted(true);
 
     // Fetch initial data
