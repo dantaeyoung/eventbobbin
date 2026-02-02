@@ -23,43 +23,45 @@ function seededRandom(seed: number): number {
 
 function generatePreviewSquiggle(width: number, height: number, position: TagSquigglePosition): string {
   const { wiggleAmount, segmentLength, tension, chaos } = positionToSquiggleParams(position);
+
+  // Very ordered and rigid = clean rectangle
   if (position.x < 0.1 && position.y < 0.1) {
     const r = 5;
     return `M ${r} 0 L ${width - r} 0 Q ${width} 0 ${width} ${r} L ${width} ${height - r} Q ${width} ${height} ${width - r} ${height} L ${r} ${height} Q 0 ${height} 0 ${height - r} L 0 ${r} Q 0 0 ${r} 0 Z`;
   }
+
   let seedCounter = 42;
-  const frequency = 0.4;
-  const getWiggle = (perimeterPos: number) => {
+  const wiggle = () => {
     seedCounter++;
-    const periodicWiggle = Math.sin(perimeterPos * frequency + 42 * 0.1) * wiggleAmount;
-    const randomWiggle = (seededRandom(seedCounter) - 0.5) * wiggleAmount * 2;
-    return periodicWiggle * (1 - chaos) + randomWiggle * chaos;
+    const baseWiggle = (seededRandom(seedCounter) - 0.5) * wiggleAmount * 2;
+    const chaosMultiplier = 1 + (seededRandom(seedCounter + 1000) - 0.5) * chaos * 1.5;
+    return baseWiggle * chaosMultiplier;
   };
+
   const getSegmentStep = () => {
-    if (chaos < 0.3) return segmentLength;
-    const variation = (seededRandom(seedCounter++) - 0.5) * chaos * segmentLength * 0.5;
+    if (chaos < 0.2) return segmentLength;
+    const variation = (seededRandom(seedCounter++) - 0.5) * chaos * segmentLength * 0.6;
     return Math.max(6, segmentLength + variation);
   };
+
   const margin = 4;
   const allPoints: { x: number; y: number }[] = [];
-  let perimeterPos = 0;
+
   for (let x = margin; x < width - margin; x += getSegmentStep()) {
-    allPoints.push({ x, y: margin + getWiggle(perimeterPos) });
-    perimeterPos += segmentLength;
+    allPoints.push({ x: x + wiggle(), y: margin + wiggle() });
   }
   for (let y = margin; y < height - margin; y += getSegmentStep()) {
-    allPoints.push({ x: width - margin + getWiggle(perimeterPos), y });
-    perimeterPos += segmentLength;
+    allPoints.push({ x: width - margin + wiggle(), y: y + wiggle() });
   }
   for (let x = width - margin; x > margin; x -= getSegmentStep()) {
-    allPoints.push({ x, y: height - margin + getWiggle(perimeterPos) });
-    perimeterPos += segmentLength;
+    allPoints.push({ x: x + wiggle(), y: height - margin + wiggle() });
   }
   for (let y = height - margin; y > margin; y -= getSegmentStep()) {
-    allPoints.push({ x: margin + getWiggle(perimeterPos), y });
-    perimeterPos += segmentLength;
+    allPoints.push({ x: margin + wiggle(), y: y + wiggle() });
   }
+
   if (allPoints.length < 3) return '';
+
   const pathParts: string[] = [`M ${allPoints[0].x} ${allPoints[0].y}`];
   for (let i = 0; i < allPoints.length; i++) {
     const p0 = allPoints[(i - 1 + allPoints.length) % allPoints.length];
@@ -76,12 +78,20 @@ function generatePreviewSquiggle(width: number, height: number, position: TagSqu
   return pathParts.join(' ');
 }
 
+function SquigglePreview({ position }: { position: TagSquigglePosition }) {
+  const path = generatePreviewSquiggle(120, 60, position);
+  return (
+    <svg width={120} height={60} className="overflow-visible">
+      <path d={path} fill="white" stroke="#d3d3d3" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 export function SquigglesTab({ sources }: SquigglesTabProps) {
   const [settings, setSettings] = useState<SquiggleSettings>({});
-  const [selectedTag, setSelectedTag] = useState<string | null>(null);
-  const [dragPosition, setDragPosition] = useState<TagSquigglePosition | null>(null);
-  const canvasRef = useRef<HTMLDivElement>(null);
-  const isDragging = useRef(false);
+  const [draggedTag, setDraggedTag] = useState<string | null>(null);
+  const [previewPosition, setPreviewPosition] = useState<TagSquigglePosition>({ x: 0.5, y: 0.5 });
+  const gridRef = useRef<HTMLDivElement>(null);
 
   const allTags = Array.from(new Set(
     sources.flatMap(s => s.tags ? s.tags.split(',').map(t => t.trim().toLowerCase()).filter(Boolean) : [])
@@ -94,98 +104,209 @@ export function SquigglesTab({ sources }: SquigglesTabProps) {
     });
   }, []);
 
-  const handleCanvasInteraction = (e: React.MouseEvent | React.TouchEvent) => {
-    if (!selectedTag || !canvasRef.current) return;
-    const rect = canvasRef.current.getBoundingClientRect();
-    const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
-    const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
-    const x = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
-    const y = Math.max(0, Math.min(1, (clientY - rect.top) / rect.height));
-    setDragPosition({ x, y });
+  const assignedTags = allTags.filter((tag) => settings[tag]);
+  const unassignedTags = allTags.filter((tag) => !settings[tag]);
+
+  const handleGridDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    if (!draggedTag || !gridRef.current) return;
+
+    const rect = gridRef.current.getBoundingClientRect();
+    const x = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+    const y = Math.max(0, Math.min(1, (e.clientY - rect.top) / rect.height));
+
+    const newSettings = { ...settings, [draggedTag]: { x, y } };
+    setSettings(newSettings);
+    saveSquiggleSettings(newSettings);
+    setDraggedTag(null);
   };
 
-  const handleMouseDown = (e: React.MouseEvent) => {
-    if (!selectedTag) return;
-    isDragging.current = true;
-    handleCanvasInteraction(e);
+  const handleUnassignedDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    if (!draggedTag) return;
+
+    const newSettings = { ...settings };
+    delete newSettings[draggedTag];
+    setSettings(newSettings);
+    saveSquiggleSettings(newSettings);
+    setDraggedTag(null);
   };
 
-  const handleMouseMove = (e: React.MouseEvent) => {
-    if (!isDragging.current) return;
-    handleCanvasInteraction(e);
+  const handleTagDragStart = (tag: string) => {
+    setDraggedTag(tag);
   };
 
-  const handleMouseUp = () => {
-    if (isDragging.current && selectedTag && dragPosition) {
-      const newSettings = { ...settings, [selectedTag]: dragPosition };
-      setSettings(newSettings);
-      saveSquiggleSettings(newSettings);
-    }
-    isDragging.current = false;
-    setDragPosition(null);
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
   };
 
-  const currentPosition = selectedTag
-    ? (dragPosition || settings[selectedTag] || { x: 0, y: 0 })
-    : { x: 0.5, y: 0.5 };
+  const handleGridDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    if (!gridRef.current) return;
+    const rect = gridRef.current.getBoundingClientRect();
+    const x = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+    const y = Math.max(0, Math.min(1, (e.clientY - rect.top) / rect.height));
+    setPreviewPosition({ x, y });
+  };
 
   return (
     <main className="flex-1 overflow-y-auto">
       <div className="max-w-4xl mx-auto px-4 py-6">
-        <div className="bg-white rounded-lg border border-gray-200 p-6 mb-6">
-          <h2 className="font-semibold text-gray-900 mb-4">Tag Squiggle Settings</h2>
-          <p className="text-sm text-gray-600 mb-4">
-            Position each tag on the grid to control how its events appear. X-axis: Order → Chaos. Y-axis: Smooth → Active.
-          </p>
-          <div className="flex flex-wrap gap-2 mb-6">
-            {allTags.map((tag) => {
-              const colors = getTagColor(tag);
-              const isSelected = selectedTag === tag;
-              return (
-                <button
-                  key={tag}
-                  onClick={() => setSelectedTag(isSelected ? null : tag)}
-                  className={`px-3 py-1.5 text-sm rounded-full transition-all ${isSelected ? 'ring-2 ring-offset-2 ring-gray-900' : ''}`}
-                  style={{ backgroundColor: colors.bg, color: colors.text }}
-                >
-                  {tag}
-                </button>
-              );
-            })}
-          </div>
-          {selectedTag && (
-            <div className="flex gap-6">
-              <div
-                ref={canvasRef}
-                className="relative w-80 h-80 bg-gray-50 rounded-lg border border-gray-200 cursor-crosshair select-none"
-                onMouseDown={handleMouseDown}
-                onMouseMove={handleMouseMove}
-                onMouseUp={handleMouseUp}
-                onMouseLeave={handleMouseUp}
-              >
-                <div className="absolute top-2 left-1/2 -translate-x-1/2 text-xs text-gray-400">Order</div>
-                <div className="absolute bottom-2 left-1/2 -translate-x-1/2 text-xs text-gray-400">Chaos</div>
-                <div className="absolute left-2 top-1/2 -translate-y-1/2 text-xs text-gray-400 -rotate-90">Smooth</div>
-                <div className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-gray-400 -rotate-90">Active</div>
-                <div
-                  className="absolute w-6 h-6 rounded-full border-2 border-gray-900 bg-white shadow-lg -translate-x-1/2 -translate-y-1/2"
-                  style={{ left: `${currentPosition.x * 100}%`, top: `${currentPosition.y * 100}%` }}
-                />
+        <p className="text-gray-600 mb-6">
+          Drag tags onto the grid to assign squiggle styles. Position determines the vibe:
+          <br />
+          <strong>→ Order ↔ Chaos:</strong> Left = regular, predictable patterns. Right = wild, irregular energy.
+          <br />
+          <strong>↓ Smooth ↔ Active:</strong> Top = tight, controlled. Bottom = loose, flowing, expansive.
+        </p>
+
+        <div className="flex gap-8">
+          {/* Main Grid */}
+          <div className="flex-1">
+            <div
+              ref={gridRef}
+              className="relative bg-white border-2 border-gray-300 rounded-lg aspect-square cursor-crosshair"
+              onDrop={handleGridDrop}
+              onDragOver={handleGridDragOver}
+            >
+              {/* Grid lines */}
+              <div className="absolute inset-0 grid grid-cols-2 grid-rows-2 pointer-events-none">
+                <div className="border-r border-b border-gray-200" />
+                <div className="border-b border-gray-200" />
+                <div className="border-r border-gray-200" />
+                <div />
               </div>
-              <div className="flex-1">
-                <h3 className="font-medium text-gray-900 mb-2">Preview: {selectedTag}</h3>
-                <svg width="200" height="80" className="border border-gray-200 rounded bg-white">
-                  <path d={generatePreviewSquiggle(200, 80, currentPosition)} fill={getTagColor(selectedTag).bg} stroke={getTagColor(selectedTag).text} strokeWidth="1" />
-                </svg>
-                <p className="text-xs text-gray-500 mt-2">
-                  Position: ({currentPosition.x.toFixed(2)}, {currentPosition.y.toFixed(2)})
-                </p>
+
+              {/* Axis labels */}
+              <div className="absolute -bottom-8 left-0 right-0 flex justify-between text-xs text-gray-500">
+                <span>Order</span>
+                <span className="font-medium">← → Chaos</span>
+                <span>Chaos</span>
+              </div>
+              <div className="absolute -left-8 top-0 bottom-0 flex flex-col justify-between text-xs text-gray-500">
+                <span className="origin-left -rotate-90 translate-y-4">Smooth</span>
+                <span className="origin-left -rotate-90 translate-y-6 font-medium">↑ ↓</span>
+                <span className="origin-left -rotate-90 translate-y-4">Active</span>
+              </div>
+
+              {/* Corner previews */}
+              <div className="absolute top-2 left-2 opacity-40 pointer-events-none">
+                <div className="text-[9px] text-gray-500 mb-1 text-center">Order + Smooth</div>
+                <SquigglePreview position={{ x: 0, y: 0 }} />
+              </div>
+              <div className="absolute top-2 right-2 opacity-40 pointer-events-none">
+                <div className="text-[9px] text-gray-500 mb-1 text-center">Chaos + Smooth</div>
+                <SquigglePreview position={{ x: 1, y: 0 }} />
+              </div>
+              <div className="absolute bottom-2 left-2 opacity-40 pointer-events-none">
+                <div className="text-[9px] text-gray-500 mb-1 text-center">Order + Active</div>
+                <SquigglePreview position={{ x: 0, y: 1 }} />
+              </div>
+              <div className="absolute bottom-2 right-2 opacity-40 pointer-events-none">
+                <div className="text-[9px] text-gray-500 mb-1 text-center">Chaos + Active</div>
+                <SquigglePreview position={{ x: 1, y: 1 }} />
+              </div>
+
+              {/* Assigned tags on grid */}
+              {assignedTags.map((tag) => {
+                const pos = settings[tag];
+                const colors = getTagColor(tag);
+                return (
+                  <div
+                    key={tag}
+                    draggable
+                    onDragStart={() => handleTagDragStart(tag)}
+                    className="absolute -translate-x-1/2 -translate-y-1/2 cursor-grab active:cursor-grabbing z-10"
+                    style={{ left: `${pos.x * 100}%`, top: `${pos.y * 100}%` }}
+                  >
+                    <span
+                      className="px-2 py-1 text-xs font-medium rounded-full shadow-md border-2 border-white"
+                      style={{ backgroundColor: colors.bg, color: colors.text }}
+                    >
+                      {tag}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Live preview */}
+            <div className="mt-12 p-4 bg-white rounded-lg border border-gray-200">
+              <h3 className="text-sm font-medium text-gray-700 mb-3">Preview at cursor position:</h3>
+              <div className="flex items-center gap-4">
+                <SquigglePreview position={previewPosition} />
+                <div className="text-xs text-gray-500">
+                  Chaos: {(previewPosition.x * 100).toFixed(0)}%
+                  <br />
+                  Activity: {(previewPosition.y * 100).toFixed(0)}%
+                </div>
               </div>
             </div>
-          )}
-          {!selectedTag && (
-            <div className="text-center py-12 text-gray-400">Select a tag above to adjust its squiggle style</div>
-          )}
+          </div>
+
+          {/* Unassigned Tags */}
+          <div className="w-48">
+            <h3 className="text-sm font-medium text-gray-700 mb-2">Unassigned Tags</h3>
+            <p className="text-xs text-gray-500 mb-3">
+              Drag to grid to assign squiggles. Unassigned = straight borders.
+            </p>
+            <div
+              className="min-h-[200px] p-3 bg-gray-100 rounded-lg border-2 border-dashed border-gray-300"
+              onDrop={handleUnassignedDrop}
+              onDragOver={handleDragOver}
+            >
+              {unassignedTags.length === 0 ? (
+                <p className="text-xs text-gray-400 text-center py-4">
+                  All tags assigned!
+                  <br />
+                  Drag here to unassign.
+                </p>
+              ) : (
+                <div className="flex flex-wrap gap-1.5">
+                  {unassignedTags.map((tag) => {
+                    const colors = getTagColor(tag);
+                    return (
+                      <span
+                        key={tag}
+                        draggable
+                        onDragStart={() => handleTagDragStart(tag)}
+                        className="px-2 py-1 text-xs font-medium rounded-full cursor-grab active:cursor-grabbing"
+                        style={{ backgroundColor: colors.bg, color: colors.text }}
+                      >
+                        {tag}
+                      </span>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Assigned tags list */}
+            {assignedTags.length > 0 && (
+              <div className="mt-6">
+                <h3 className="text-sm font-medium text-gray-700 mb-2">Assigned Tags</h3>
+                <div className="space-y-1.5">
+                  {assignedTags.map((tag) => {
+                    const pos = settings[tag];
+                    const colors = getTagColor(tag);
+                    return (
+                      <div key={tag} className="flex items-center justify-between text-xs">
+                        <span
+                          className="px-2 py-0.5 rounded-full"
+                          style={{ backgroundColor: colors.bg, color: colors.text }}
+                        >
+                          {tag}
+                        </span>
+                        <span className="text-gray-400">
+                          {(pos.x * 100).toFixed(0)}%, {(pos.y * 100).toFixed(0)}%
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </main>
