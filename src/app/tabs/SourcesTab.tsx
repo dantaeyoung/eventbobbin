@@ -9,6 +9,7 @@ import { getTagColor } from '@/lib/tagColors';
 import { api } from '@/lib/api';
 
 const SOURCE_SORT_KEY = 'eventbobbin-source-sort';
+const SOURCE_CITY_FILTER_KEY = 'eventbobbin-source-city-filter';
 type SourceSort = 'alpha' | 'lastScraped';
 
 function loadSourceSort(): SourceSort {
@@ -16,6 +17,11 @@ function loadSourceSort(): SourceSort {
   const stored = localStorage.getItem(SOURCE_SORT_KEY);
   if (stored && ['alpha', 'lastScraped'].includes(stored)) return stored as SourceSort;
   return 'alpha';
+}
+
+function loadCityFilter(): string {
+  if (typeof window === 'undefined') return '';
+  return localStorage.getItem(SOURCE_CITY_FILTER_KEY) || '';
 }
 
 function formatElapsed(startTime: string): string {
@@ -46,6 +52,7 @@ export function SourcesTab({ sources, setSources, refreshSources }: SourcesTabPr
   const [sourceSort, setSourceSort] = useState<SourceSort>('alpha');
   const [scrapingAll, setScrapingAll] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [cityFilter, setCityFilter] = useState('');
   const [showAddCityModal, setShowAddCityModal] = useState(false);
   const [newCityName, setNewCityName] = useState('');
   const [addCityTarget, setAddCityTarget] = useState<'add' | 'edit'>('add');
@@ -53,6 +60,7 @@ export function SourcesTab({ sources, setSources, refreshSources }: SourcesTabPr
 
   useEffect(() => {
     setSourceSort(loadSourceSort());
+    setCityFilter(loadCityFilter());
     setMounted(true);
   }, []);
 
@@ -60,20 +68,33 @@ export function SourcesTab({ sources, setSources, refreshSources }: SourcesTabPr
     localStorage.setItem(SOURCE_SORT_KEY, sourceSort);
   }, [sourceSort]);
 
-  const sortedSources = useMemo(() => {
-    const sorted = [...sources];
-    if (sourceSort === 'alpha') {
-      sorted.sort((a, b) => a.name.localeCompare(b.name));
+  useEffect(() => {
+    if (cityFilter) {
+      localStorage.setItem(SOURCE_CITY_FILTER_KEY, cityFilter);
     } else {
-      sorted.sort((a, b) => {
+      localStorage.removeItem(SOURCE_CITY_FILTER_KEY);
+    }
+  }, [cityFilter]);
+
+  const sortedSources = useMemo(() => {
+    let filtered = [...sources];
+    // Apply city filter
+    if (cityFilter) {
+      filtered = filtered.filter((s) => s.city === cityFilter);
+    }
+    // Sort
+    if (sourceSort === 'alpha') {
+      filtered.sort((a, b) => a.name.localeCompare(b.name));
+    } else {
+      filtered.sort((a, b) => {
         if (!a.lastScrapedAt && !b.lastScrapedAt) return a.name.localeCompare(b.name);
         if (!a.lastScrapedAt) return -1;
         if (!b.lastScrapedAt) return 1;
         return new Date(a.lastScrapedAt).getTime() - new Date(b.lastScrapedAt).getTime();
       });
     }
-    return sorted;
-  }, [sources, sourceSort]);
+    return filtered;
+  }, [sources, sourceSort, cityFilter]);
 
   const allCities = useMemo(() => {
     const citySet = new Set<string>();
@@ -230,10 +251,21 @@ export function SourcesTab({ sources, setSources, refreshSources }: SourcesTabPr
         </form>
 
         <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-gray-600">Sort:</span>
-            <button onClick={() => setSourceSort('alpha')} className={`px-3 py-1 text-sm rounded-md ${sourceSort === 'alpha' ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}>A-Z</button>
-            <button onClick={() => setSourceSort('lastScraped')} className={`px-3 py-1 text-sm rounded-md ${sourceSort === 'lastScraped' ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}>Stale</button>
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-gray-600">Sort:</span>
+              <button onClick={() => setSourceSort('alpha')} className={`px-3 py-1 text-sm rounded-md ${sourceSort === 'alpha' ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}>A-Z</button>
+              <button onClick={() => setSourceSort('lastScraped')} className={`px-3 py-1 text-sm rounded-md ${sourceSort === 'lastScraped' ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}>Stale</button>
+            </div>
+            {allCities.length > 0 && (
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-gray-600">City:</span>
+                <button onClick={() => setCityFilter('')} className={`px-3 py-1 text-sm rounded-md ${cityFilter === '' ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}>All</button>
+                {allCities.map((c) => (
+                  <button key={c} onClick={() => setCityFilter(c)} className={`px-3 py-1 text-sm rounded-md ${cityFilter === c ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}>{c}</button>
+                ))}
+              </div>
+            )}
           </div>
           <button onClick={(e) => handleScrapeAll(e.shiftKey)} disabled={scrapingAll || hasScrapingSource} title="Scrape all enabled sources" className="px-4 py-1.5 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50">{scrapingAll ? 'Scraping All...' : 'Scrape All'}</button>
         </div>
