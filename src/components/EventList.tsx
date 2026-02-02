@@ -147,10 +147,10 @@ function DateGroup({
       <h2 className="font-bold text-[16px] mb-3" style={{ color: 'var(--color-accent)' }}>
         {dateLabel}
       </h2>
-      <div className="relative" ref={containerRef}>
+      <div className="relative overflow-visible" ref={containerRef}>
         {squigglePath && (
           <svg
-            className="absolute inset-0 w-full h-full pointer-events-none"
+            className="absolute inset-0 w-full h-full pointer-events-none overflow-visible"
             viewBox={`0 0 ${dimensions.width} ${dimensions.height}`}
           >
             <path
