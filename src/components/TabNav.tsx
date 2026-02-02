@@ -36,7 +36,7 @@ function ManilaTab({
     <button
       onClick={() => onNavigate(id)}
       className={`
-        relative block cursor-pointer
+        relative block cursor-pointer overflow-visible
         ${hideOnMobile ? 'hidden md:block' : ''}
         ${isActive ? 'z-10' : 'z-0'}
       `}
@@ -51,7 +51,7 @@ function ManilaTab({
         width={width}
         height={height + overflow}
         viewBox={`0 0 ${width} ${height + overflow}`}
-        className="absolute inset-0"
+        className="absolute inset-0 overflow-visible"
         preserveAspectRatio="none"
       >
         {/* Tab shape */}
@@ -101,7 +101,7 @@ const TAB_WIDTHS: Record<string, number> = {
 
 export function TabNav({ tabs, onNavigate, activeTab }: TabNavProps) {
   return (
-    <div className="flex items-end h-[34px]">
+    <div className="flex items-end h-[34px] overflow-visible">
       {tabs.map((tab) => (
         <ManilaTab
           key={tab.id}
