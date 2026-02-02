@@ -1,25 +1,10 @@
-// API client that supports local or remote API
-// Set NEXT_PUBLIC_API_URL in .env.local to use remote API
-
-export const getApiUrl = () => {
-  let url = '';
-  // In browser, use the public env var
-  if (typeof window !== 'undefined') {
-    url = process.env.NEXT_PUBLIC_API_URL || '';
-  } else {
-    // On server, use internal API URL or empty for local
-    url = process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || '';
-  }
-  // Remove trailing slash to avoid double slashes
-  return url.replace(/\/$/, '');
-};
+// API client for internal API routes
 
 export async function apiFetch<T>(
   path: string,
   options?: RequestInit
 ): Promise<T> {
-  const baseUrl = getApiUrl();
-  const url = `${baseUrl}${path}`;
+  const url = path;
 
   const res = await fetch(url, {
     ...options,

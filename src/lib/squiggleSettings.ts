@@ -2,8 +2,6 @@
 // X-axis: Order (0) ↔ Chaos (1) - regularity vs randomness
 // Y-axis: Rigid (0) ↔ Open (1) - tight/angular vs loose/flowing
 
-import { getApiUrl } from './api';
-
 export interface TagSquigglePosition {
   x: number; // 0-1, order → chaos
   y: number; // 0-1, rigid → open
@@ -19,8 +17,7 @@ const LOCAL_STORAGE_KEY = 'eventbobbin-squiggle-settings';
 // Fetch squiggle settings from API
 export async function fetchSquiggleSettings(): Promise<SquiggleSettings> {
   try {
-    const baseUrl = getApiUrl();
-    const res = await fetch(`${baseUrl}/api/settings/${SETTINGS_KEY}`);
+    const res = await fetch(`/api/settings/${SETTINGS_KEY}`);
     if (res.ok) {
       const text = await res.text();
       // Check if response is JSON before parsing
@@ -50,8 +47,7 @@ export async function fetchSquiggleSettings(): Promise<SquiggleSettings> {
 // Save squiggle settings to API
 export async function saveSquiggleSettingsToAPI(settings: SquiggleSettings): Promise<void> {
   try {
-    const baseUrl = getApiUrl();
-    await fetch(`${baseUrl}/api/settings/${SETTINGS_KEY}`, {
+    await fetch(`/api/settings/${SETTINGS_KEY}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ value: settings }),
