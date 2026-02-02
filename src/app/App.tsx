@@ -115,7 +115,10 @@ export function App() {
           <div className="max-w-6xl mx-auto px-4">
             <div className="flex items-end justify-between pt-3">
               <div className="flex items-end gap-4">
-                <h1 className="text-xl font-bold pb-2" style={{ color: 'var(--color-text)' }}>EventBobbin</h1>
+                <div className="flex items-center gap-2 pb-2">
+                  <img src="/logo.png" alt="" className="w-7 h-7 object-contain" />
+                  <h1 className="text-xl font-bold" style={{ color: 'var(--color-text)' }}>EventBobbin</h1>
+                </div>
                 <AppNav onNavigate={navigateToTab} activeTab={activeTab} />
               </div>
             </div>
@@ -135,7 +138,10 @@ export function App() {
         <div className="max-w-6xl mx-auto px-4">
           <div className="flex items-end justify-between pt-3">
             <div className="flex items-end gap-4">
-              <h1 className="text-xl font-bold pb-2" style={{ color: 'var(--color-text)' }}>EventBobbin</h1>
+              <div className="flex items-center gap-2 pb-2">
+                  <img src="/logo.png" alt="" className="w-7 h-7 object-contain" />
+                  <h1 className="text-xl font-bold" style={{ color: 'var(--color-text)' }}>EventBobbin</h1>
+                </div>
               <AppNav onNavigate={navigateToTab} activeTab={activeTab} />
             </div>
           </div>
