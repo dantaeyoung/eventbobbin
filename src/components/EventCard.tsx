@@ -326,7 +326,7 @@ export function EventCard({ event, source, squiggleSettings = {}, onClick, isSel
                       style={{
                         backgroundColor: colors.bg,
                         color: colors.text,
-                        transform: `rotate(${10 + i * 5}deg)`,
+                        transform: `rotate(${-10 - i * 5}deg)`,
                       }}
                     >
                       {tag}
