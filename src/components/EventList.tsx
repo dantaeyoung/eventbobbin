@@ -1,6 +1,7 @@
 import { Event, Source } from '@/lib/types';
 import { EventCard } from './EventCard';
 import { format } from 'date-fns';
+import { useState, useEffect, useRef } from 'react';
 import { SquiggleSettings, positionToSquiggleParams, TagSquigglePosition } from '@/lib/squiggleSettings';
 
 function seededRandom(seed: number): number {
@@ -100,6 +101,85 @@ function groupEventsByDate(events: Event[]): Map<string, Event[]> {
   return groups;
 }
 
+// Component for a date group with measured squiggle
+function DateGroup({
+  dateKey,
+  dateEvents,
+  sourceMap,
+  squiggleSettings,
+  onEventClick,
+  selectedEventId,
+}: {
+  dateKey: string;
+  dateEvents: Event[];
+  sourceMap: Map<string, Source>;
+  squiggleSettings?: SquiggleSettings;
+  onEventClick?: (event: Event) => void;
+  selectedEventId?: string | null;
+}) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const { width, height } = entry.contentRect;
+        setDimensions({ width: Math.round(width), height: Math.round(height) });
+      }
+    });
+
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, []);
+
+  const date = new Date(dateKey + 'T12:00:00');
+  const dateLabel = format(date, 'EEEE, MMM d');
+
+  const squigglePath = dimensions.width > 0 && dimensions.height > 0
+    ? generateContainerSquiggle(dimensions.width, dimensions.height, dateKey, { x: 0.05, y: 0.08 })
+    : '';
+
+  return (
+    <div key={dateKey}>
+      <h2 className="font-bold text-[16px] mb-3" style={{ color: 'var(--color-accent)' }}>
+        {dateLabel}
+      </h2>
+      <div className="relative" ref={containerRef}>
+        {squigglePath && (
+          <svg
+            className="absolute inset-0 w-full h-full pointer-events-none"
+            viewBox={`0 0 ${dimensions.width} ${dimensions.height}`}
+          >
+            <path
+              d={squigglePath}
+              fill="var(--color-accent-light)"
+              stroke="var(--color-accent-stroke)"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        )}
+        <div className="relative p-4 space-y-4">
+          {dateEvents.map((event) => (
+            <EventCard
+              key={event.id}
+              event={event}
+              source={sourceMap.get(event.sourceId)}
+              squiggleSettings={squiggleSettings}
+              onClick={onEventClick}
+              isSelected={selectedEventId === event.id}
+            />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function EventList({ events, sources, squiggleSettings, onEventClick, selectedEventId }: EventListProps) {
   const sourceMap = new Map(sources.map((s) => [s.id, s]));
 
@@ -116,52 +196,17 @@ export function EventList({ events, sources, squiggleSettings, onEventClick, sel
 
   return (
     <div className="space-y-6">
-      {sortedDates.map((dateKey) => {
-        const dateEvents = groupedEvents.get(dateKey) || [];
-        const date = new Date(dateKey + 'T12:00:00'); // Noon to avoid timezone issues
-        const dateLabel = format(date, 'EEEE, MMM d');
-
-        const squigglePath = generateContainerSquiggle(600, 400, dateKey, { x: 0.05, y: 0.08 });
-
-        return (
-          <div key={dateKey}>
-            {/* Date header */}
-            <h2 className="font-bold text-[16px] mb-3" style={{ color: 'var(--color-accent)' }}>
-              {dateLabel}
-            </h2>
-
-            {/* Events for this date */}
-            <div className="relative">
-              <svg
-                className="absolute inset-0 w-full h-full pointer-events-none"
-                preserveAspectRatio="none"
-                viewBox="0 0 600 400"
-              >
-                <path
-                  d={squigglePath}
-                  fill="var(--color-accent-light)"
-                  stroke="var(--color-accent-stroke)"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-              <div className="relative p-4 space-y-4">
-                {dateEvents.map((event) => (
-                  <EventCard
-                    key={event.id}
-                    event={event}
-                    source={sourceMap.get(event.sourceId)}
-                    squiggleSettings={squiggleSettings}
-                    onClick={onEventClick}
-                    isSelected={selectedEventId === event.id}
-                  />
-                ))}
-              </div>
-            </div>
-          </div>
-        );
-      })}
+      {sortedDates.map((dateKey) => (
+        <DateGroup
+          key={dateKey}
+          dateKey={dateKey}
+          dateEvents={groupedEvents.get(dateKey) || []}
+          sourceMap={sourceMap}
+          squiggleSettings={squiggleSettings}
+          onEventClick={onEventClick}
+          selectedEventId={selectedEventId}
+        />
+      ))}
     </div>
   );
 }
