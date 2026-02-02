@@ -14,8 +14,20 @@ const CITY_KEY = 'eventbobbin-city';
 const SOURCES_KEY = 'eventbobbin-sources';
 const TAGS_KEY = 'eventbobbin-tags';
 
+function getCityFromHash(): string | null {
+  if (typeof window === 'undefined') return null;
+  const hash = window.location.hash.slice(1); // Remove #
+  if (hash && hash !== 'events') {
+    return decodeURIComponent(hash);
+  }
+  return null;
+}
+
 function loadCity(): string | null {
   if (typeof window === 'undefined') return null;
+  // First check URL hash, then localStorage
+  const hashCity = getCityFromHash();
+  if (hashCity) return hashCity;
   return localStorage.getItem(CITY_KEY);
 }
 
@@ -133,11 +145,26 @@ export function EventsTab({ sources, events, setEvents, allEvents, setAllEvents,
     if (mounted) {
       if (selectedCity) {
         localStorage.setItem(CITY_KEY, selectedCity);
+        // Update URL hash
+        window.history.replaceState(null, '', `#${encodeURIComponent(selectedCity)}`);
       } else {
         localStorage.removeItem(CITY_KEY);
+        // Clear hash
+        window.history.replaceState(null, '', window.location.pathname);
       }
     }
   }, [selectedCity, mounted]);
+
+  // Handle browser back/forward
+  useEffect(() => {
+    const handleHashChange = () => {
+      const hashCity = getCityFromHash();
+      setSelectedCity(hashCity);
+    };
+
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, []);
 
   useEffect(() => {
     if (mounted) {
