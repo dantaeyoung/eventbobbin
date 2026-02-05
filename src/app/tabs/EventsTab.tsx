@@ -436,6 +436,7 @@ export function EventsTab({ sources, events, setEvents, allEvents, setAllEvents,
                 squiggleSettings={squiggleSettings}
                 onEventClick={setSelectedEvent}
                 selectedEventId={selectedEvent?.id}
+                loading={loading}
               />
             </div>
           </div>

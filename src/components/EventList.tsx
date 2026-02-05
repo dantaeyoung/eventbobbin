@@ -83,6 +83,7 @@ interface EventListProps {
   squiggleSettings?: SquiggleSettings;
   onEventClick?: (event: Event) => void;
   selectedEventId?: string | null;
+  loading?: boolean;
 }
 
 // Group events by local date
@@ -180,8 +181,16 @@ function DateGroup({
   );
 }
 
-export function EventList({ events, sources, squiggleSettings, onEventClick, selectedEventId }: EventListProps) {
+export function EventList({ events, sources, squiggleSettings, onEventClick, selectedEventId, loading }: EventListProps) {
   const sourceMap = new Map(sources.map((s) => [s.id, s]));
+
+  if (loading) {
+    return (
+      <div className="text-center py-12" style={{ color: 'var(--color-text-muted)' }}>
+        <div className="inline-block animate-pulse">Loading events...</div>
+      </div>
+    );
+  }
 
   if (events.length === 0) {
     return (
